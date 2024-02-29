@@ -12,4 +12,4 @@ clean:
 	rm start.o initializer initializer.o
 
 install:
-	cp initializer $(CHIMERA_SRC_ROOT)/iso/boot/initializer
+	cp target/i686/debug/initializer $(CHIMERA_SRC_ROOT)/iso/boot/initializer
