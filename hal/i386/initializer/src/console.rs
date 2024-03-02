@@ -2,7 +2,7 @@
 
 #![allow(dead_code)]
 
-use crate::lib_bootinfo::BootInfo;
+use boot::BootInfo;
 
 
 const FONT_WIDTH: u32 = 8;

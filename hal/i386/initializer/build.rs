@@ -3,6 +3,7 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+
     // Path to the NASM source file
     let nasm_src_path = "src/start.asm";
 

@@ -6,16 +6,16 @@
 
 
 mod multiboot2;
-mod lib_bootinfo;
 mod i386bootinfo;
-mod bootinfo;
+mod initbootinfo;
 mod console;
 mod writer;
 
 use core::panic::PanicInfo;
-use lib_bootinfo::BootInfo;
+use boot::BootInfo;
 use i386bootinfo::i386BootInfo;
 use console::*;
+
 
 
 // remove if not debugging
@@ -34,7 +34,7 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     // Create bootinfo tables, set all values to their defaults, then initialize them
     let mut bootinfo: BootInfo = BootInfo::default();
     let mut i386bootinfo: i386BootInfo = i386BootInfo::default();
-    bootinfo::initialize(&mut bootinfo, &mut i386bootinfo, multiboot2_info_address);
+    initbootinfo::initialize(&mut bootinfo, &mut i386bootinfo, multiboot2_info_address);
 
 
     // log values to console to check them

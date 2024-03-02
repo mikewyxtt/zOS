@@ -1,5 +1,10 @@
-// lib_bootinfo.rs
+// lib.rs
 
+#![no_std]
+
+// pub mod boot {
+
+    
 #[derive(Default)]
 #[repr(C)]
 pub struct BootInfo {
@@ -136,3 +141,4 @@ pub struct CPUInfo {
 pub struct Config {
     pub headless: bool,
 }
+// }
