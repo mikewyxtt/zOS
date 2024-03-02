@@ -8,9 +8,13 @@ pub fn initialize(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo, mult
     
     bootinfo.early_log_buffer.size = bootinfo.early_log_buffer.buffer.len();
 
-    // Setup serial port
-    bootinfo.serial.enabled = true;
-    bootinfo.serial.port = 0x3F8;
+
+    // Setup serial port if debugging is enabled
+    #[cfg(feature = "serial_debug")]
+    {
+        bootinfo.serial.enabled = true;
+        bootinfo.serial.port = 0x3F8;
+    }
 
     parse_multiboot_header(bootinfo, i386bootinfo, multiboot2_info_address);
 
