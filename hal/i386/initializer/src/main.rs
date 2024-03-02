@@ -7,6 +7,7 @@
 
 mod multiboot2;
 mod bootinfo;
+mod i386bootinfo;
 mod console;
 mod writer;
 
@@ -16,6 +17,7 @@ pub use debug_tools::*;
 use core::fmt::Write;
 
 use bootinfo::BootInfo;
+use i386bootinfo::i386BootInfo;
 use console::*;
 use core::panic::PanicInfo;
 
@@ -64,8 +66,6 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
 
 
 fn initialize_boot_info(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo, multiboot2_info_address: usize) {
-    serial_log!("Inside initialize_boot_info.");
-
     
     bootinfo.early_log_buffer.size = bootinfo.early_log_buffer.buffer.len();
 
@@ -78,9 +78,10 @@ fn initialize_boot_info(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo
 }
 
 pub fn parse_multiboot_header(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo, multiboot2_info_address: usize) {
+    i386bootinfo.x = 0; // bs entry to hide warning
+    
     // Set default values
     use multiboot2::*;
-    //serial_log!("Inside parse_multiboot_header");
     
     // pointer to first multiboot tag entry
     let mut tag: *const MultibootTag = (multiboot2_info_address + 8) as *const _;
@@ -90,7 +91,6 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, i386bootinfo: &mut i386Bo
         unsafe {
             match (*tag).type_ {
                 MULTIBOOT_TAG_TYPE_FRAMEBUFFER => {
-                    //serial_log!("Found MULTIBOOT_TAG_TYPE_FRAMEBUFFER.");
                     
                     let fbtag: *const MultibootTagFramebuffer = core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize);
 
@@ -118,13 +118,11 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, i386bootinfo: &mut i386Bo
                 }
 
                 MULTIBOOT_TAG_TYPE_END => {
-                    //serial_log!("Found MULTIBOOT_TAG_TYPE_END");
                     break;
                 }
 
                 // Handle tag types we don't care about
                 _ => {
-                    //serial_log!("Multiboot 2 tag found of unknown type. Skipping.");
                 }
             }
             
@@ -140,12 +138,4 @@ fn panic(_info: &PanicInfo) -> ! {
     unsafe { debug_tools::set_eax(0xBad0Deed); }
     serial_log!("{}", _info);
     loop {}
-}
-
-
-
-#[derive(Default)]
-#[repr(C)]
-pub struct i386BootInfo {
-    pub x: i32,
 }
