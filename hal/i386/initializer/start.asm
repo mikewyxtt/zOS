@@ -1,6 +1,8 @@
 ; start.asm
 ; Multiboot2 compliant initializer entry stub
 
+;; ALL EDITS TO THIS FILE WILL REQUIRE A 'cargo clean' TO TAKE EFFECT!!
+
 [BITS 32]
 SECTION .multiboot
 ALIGN 8
@@ -39,7 +41,9 @@ GLOBAL _start
 _start:
     CLI                                 ; Disable Interupts
 
-    MOV     ESP, stack_bottom + 0x4000  ; 16KB stack
+;    MOV     ESP, stack_bottom + 0x10000  ; 64KB stack
+    mov     esp,  0x0007FFFF 
+    MOV     EBP, ESP
 
     push 0                              ; Reset EFLAGS register
     popf                                ; ^^
@@ -52,5 +56,5 @@ _start:
     HLT
     JMP     .loop
 
-SECTION .bss
-stack_bottom    RESB    0x4000          ; 16KB stack
+;SECTION .bss
+;stack_bottom    RESB    0x10000          ; 64KB stack ( was 0x4000 for both)
