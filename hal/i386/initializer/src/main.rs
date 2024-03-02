@@ -12,15 +12,16 @@ mod bootinfo;
 mod console;
 mod writer;
 
+use core::panic::PanicInfo;
+use lib_bootinfo::BootInfo;
+use i386bootinfo::i386BootInfo;
+use console::*;
+
+
 // remove if not debugging
 mod debug_tools;
 pub use debug_tools::*;
 use core::fmt::Write;
-
-use lib_bootinfo::BootInfo;
-use i386bootinfo::i386BootInfo;
-use console::*;
-use core::panic::PanicInfo;
 
 
 #[no_mangle]
