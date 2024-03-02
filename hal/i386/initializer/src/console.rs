@@ -10,7 +10,7 @@ const FONT_HEIGHT: u32 = 16;
 const TAB_WIDTH: u32 = 4;
 
 
-// Define a macro for printing to serial
+// Define a macro for printing to console
 #[macro_export]
 macro_rules! early_log {
     ($bootinfo:expr, $($arg:tt)*) => {{
@@ -149,7 +149,23 @@ fn console_newline(bootinfo: &mut BootInfo) {
     }
 }
 
+
 fn console_scroll(bootinfo: &mut BootInfo) {
+    /* 
+     * To scroll the console we first copy every pixel below the top line to the beginning of the framebuffer. Then we clear out the bottom line since it still contains what used to be the
+     * bottom most row of text.
+     *
+     * The calculations are simple:
+     * The size of one row of text(in bytes) is equivalent to the height of the font * the pitch (number of bytes needed to index one pixel down)
+     *
+     * To skip the first row of text, we simply add that number to the base address of the framebuffer.
+     *
+     * To find out how many bytes we need to copy, we simply subtract the size of one row of text (in bytes) from the total size of the framebuffer (in bytes).
+     * 
+     * To clear the bottom row of text, we find the beginning of the bottom row bu subtracting the size of one row of text from the total size of the framebuffer, then we set the size of one
+     * row of text (in bytes) to 0, which turns all of those pixels off.
+     *
+     */
     let base = bootinfo.framebuffer.addr as *mut u8;
     let row_size = bootinfo.framebuffer.pitch as usize * FONT_HEIGHT as usize;
 
@@ -160,7 +176,7 @@ fn console_scroll(bootinfo: &mut BootInfo) {
     
 
     // Clear the bottom row
-    let offset = (base as usize + bootinfo.framebuffer.size as usize - (bootinfo.framebuffer.pitch as usize * FONT_HEIGHT as usize)) as *mut u8;
+    let offset = (base as usize + bootinfo.framebuffer.size as usize - row_size) as *mut u8;
     unsafe { core::ptr::write_bytes(offset, 0, row_size); }
 }
 
