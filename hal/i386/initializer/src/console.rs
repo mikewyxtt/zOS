@@ -2,29 +2,31 @@
 
 #![allow(dead_code)]
 
-use boot::BootInfo;
+use chimera::boot::bootinfo::BootInfo;
 
 
 const FONT_WIDTH: u32 = 8;
 const FONT_HEIGHT: u32 = 16;
 const TAB_WIDTH: u32 = 4;
 
+/* just keep a txt buffer and refresh the screen after each write. this way messages before the fb are up arent lost, and it will prob look better */
+
 
 // Define a macro for printing to console
-#[macro_export]
-macro_rules! early_log {
-    ($bootinfo:expr, $($arg:tt)*) => {{
-        // Create a fixed-size buffer for the formatted string
-        let mut buffer = [0u8; 1024];
-        let mut cursor = $crate::writer::create_cursor(&mut buffer[..]);
+// #[macro_export]
+// macro_rules! early_log {
+//     ($bootinfo:expr, $($arg:tt)*) => {{
+//         // Create a fixed-size buffer for the formatted string
+//         let mut buffer = [0u8; 1024];
+//         let mut cursor = $crate::writer::create_cursor(&mut buffer[..]);
 
-        // Write the formatted string to the buffer
-        let _ = write!(&mut cursor, "{}\n", core::format_args!($($arg)*));
+//         // Write the formatted string to the buffer
+//         let _ = write!(&mut cursor, "{}\n", core::format_args!($($arg)*));
 
-        // Call the custom print function with the buffer content
-        $crate::print_to_console($bootinfo, core::str::from_utf8(&buffer).unwrap());
-    }}
-}
+//         // Call the custom print function with the buffer content
+//         $crate::print_to_console($bootinfo, core::str::from_utf8(&buffer).unwrap());
+//     }}
+// }
 
 
 /// prints a string to the fb console

@@ -1,0 +1,12 @@
+[package]
+name = "chimera"
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hal = { path = "../../../hal/lib/libhal" }
+sys_boot_bootinfo = { path = "../boot/bootinfo" }
+sys_boot_early_log = { path = "../boot/early_log" }
+#sys_debugtools = { path = "../debugtools" }

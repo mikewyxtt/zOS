@@ -1,6 +1,6 @@
 // bootinfo.rs
 
-use boot::BootInfo;
+use chimera::boot::bootinfo::BootInfo;
 use crate::i386bootinfo::i386BootInfo;
 use crate::multiboot2::*;
 

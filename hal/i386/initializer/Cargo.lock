@@ -3,12 +3,44 @@
 version = 3
 
 [[package]]
-name = "bootinfo"
-version = "0.1.0"
+name = "chimera"
+version = "0.0.0"
+dependencies = [
+ "hal",
+ "sys_boot_bootinfo",
+ "sys_boot_early_log",
+]
+
+[[package]]
+name = "debugtools"
+version = "0.0.0"
+dependencies = [
+ "hal",
+]
+
+[[package]]
+name = "hal"
+version = "0.0.0"
+dependencies = [
+ "hal_io",
+]
+
+[[package]]
+name = "hal_io"
+version = "0.0.0"
 
 [[package]]
 name = "initializer"
 version = "0.1.0"
 dependencies = [
- "bootinfo",
+ "chimera",
+ "debugtools",
 ]
+
+[[package]]
+name = "sys_boot_bootinfo"
+version = "0.0.0"
+
+[[package]]
+name = "sys_boot_early_log"
+version = "0.0.0"

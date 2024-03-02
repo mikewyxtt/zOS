@@ -2,7 +2,7 @@
 
 #![no_std]
 
-// pub mod boot {
+//pub mod boot {
 
     
 #[derive(Default)]
@@ -141,4 +141,4 @@ pub struct CPUInfo {
 pub struct Config {
     pub headless: bool,
 }
-// }
+//}

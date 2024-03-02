@@ -8,7 +8,8 @@ build = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bootinfo = { path = "../../boot/lib/bootinfo" }
+chimera = { path = "../../../sys/lib/libchimera" }
+debugtools = { path = "../../../sys/lib/debugtools" }
 
 [features]
 serial_debug = []
