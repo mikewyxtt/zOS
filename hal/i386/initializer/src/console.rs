@@ -156,7 +156,7 @@ fn console_scroll(bootinfo: &mut BootInfo) {
      * bottom most row of text.
      *
      * The calculations are simple:
-     * The size of one row of text(in bytes) is equivalent to the height of the font * the pitch (number of bytes needed to index one pixel down)
+     * The size of one row of text (in bytes) is equivalent to the height of the font * the pitch (number of bytes needed to index one pixel down)
      *
      * To skip the first row of text, we simply add that number to the base address of the framebuffer.
      *
@@ -165,7 +165,7 @@ fn console_scroll(bootinfo: &mut BootInfo) {
      * To clear the bottom row of text, we find the beginning of the bottom row bu subtracting the size of one row of text from the total size of the framebuffer, then we set the size of one
      * row of text (in bytes) to 0, which turns all of those pixels off.
      */
-     
+
     let base = bootinfo.framebuffer.addr as *mut u8;
     let row_size = bootinfo.framebuffer.pitch as usize * FONT_HEIGHT as usize;
 
