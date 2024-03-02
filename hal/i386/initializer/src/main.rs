@@ -8,8 +8,14 @@
 mod multiboot2;
 mod bootinfo;
 
+// remove if not debugging
+mod debug_tools;
+use debug_tools::*;
+use core::fmt::Write;
+
 use bootinfo::BootInfo;
 use core::panic::PanicInfo;
+
 
 #[no_mangle]
 pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
@@ -21,8 +27,6 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     // Create bootinfo tables and set all values to their defaults
     let mut bootinfo: BootInfo = BootInfo::default();
     let mut i386bootinfo: i386BootInfo = i386BootInfo::default();
-
-
     initialize_boot_info(&mut bootinfo, &mut i386bootinfo, multiboot2_info_address);
 
 
@@ -33,10 +37,40 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     fb_put_char(&bootinfo, 'C');
     bootinfo.console.cursor_pos += 1;
     
+    // log values to serial to check them
+    serial_log!("");
+    serial_log!("Multiboot 2 Info:");
+    serial_log!("\tMagic Number: 0x{:x}", magic);
+    serial_log!("\tMultiboot header addr: 0x{:x}\n", multiboot2_info_address);
 
-    serial_log("\nEND of rmain(). Looping...\n");
+    serial_log!("Framebuffer Info:");
+    serial_log!("\tEnabled: {}", bootinfo.framebuffer.enabled);
+    serial_log!("\tAddress: 0x{:x}", bootinfo.framebuffer.addr);
+
+    serial_log!("\tResolution: {}x{}", bootinfo.framebuffer.width, bootinfo.framebuffer.height);
+    serial_log!("\tPitch: {} bytes", bootinfo.framebuffer.pitch);
+    serial_log!("\tDepth: {} bits", bootinfo.framebuffer.depth * 8);
+    serial_log!("\tSize: {} bytes", bootinfo.framebuffer.size);
+    serial_log!("Console Info:");
+    serial_log!("\tMax chars: {}", bootinfo.console.max_chars);
+    serial_log!("\tMax lines: {}", bootinfo.console.max_line);
+    serial_log!("\tCursor position: {}", bootinfo.console.cursor_pos);
+    serial_log!("\tCursor line: {}", bootinfo.console.line);
+    serial_log!("Serial Port Info:");
+    serial_log!("\tEnabled: {}", bootinfo.serial.enabled);
+    serial_log!("\tUsing Port: 0x{:x}", bootinfo.serial.port);
+
+
     loop {}
 }
+
+
+
+
+
+
+
+
 
 
 /// Plots a single pixel to the framebuffer
@@ -111,14 +145,14 @@ fn fb_put_char(bootinfo: &BootInfo, c: char) {
 
 
 fn initialize_boot_info(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo, multiboot2_info_address: usize) {
-    serial_log("Inside initialize_boot_info.\n");
+    serial_log!("Inside initialize_boot_info.");
 
     
     // bootinfo.early_log_buffer.size = bootinfo.early_log_buffer.buffer.len();
 
-    // // Setup serial port
-    // bootinfo.serial.enabled = true;
-    // bootinfo.serial.port = 0x3f8;
+    // Setup serial port
+    bootinfo.serial.enabled = true;
+    bootinfo.serial.port = 0x3f8;
 
     parse_multiboot_header(bootinfo, i386bootinfo, multiboot2_info_address);
 
@@ -127,7 +161,7 @@ fn initialize_boot_info(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo
 pub fn parse_multiboot_header(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo, multiboot2_info_address: usize) {
     // Set default values
     use multiboot2::*;
-    serial_log("Inside parse_multiboot_header\n");
+    serial_log!("Inside parse_multiboot_header");
     
     // pointer to first multiboot tag entry
     let mut tag: *const MultibootTag = (multiboot2_info_address + 8) as *const _;
@@ -137,7 +171,7 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, i386bootinfo: &mut i386Bo
         unsafe {
             match (*tag).type_ {
                 MULTIBOOT_TAG_TYPE_FRAMEBUFFER => {
-                    serial_log("Found MULTIBOOT_TAG_TYPE_FRAMEBUFFER.\n");
+                    serial_log!("Found MULTIBOOT_TAG_TYPE_FRAMEBUFFER.");
                     
                     let fbtag: *const MultibootTagFramebuffer = core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize);
 
@@ -161,17 +195,17 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, i386bootinfo: &mut i386Bo
                 }
 
                 MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME => {
-                    serial_log("Found MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME\n");
+                    serial_log!("Found MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME");
                 }
 
                 MULTIBOOT_TAG_TYPE_END => {
-                    serial_log("Found MULTIBOOT_TAG_TYPE_END\n");
+                    serial_log!("Found MULTIBOOT_TAG_TYPE_END");
                     break;
                 }
 
                 // Handle tag types we don't care about
                 _ => {
-                    serial_log("Multiboot 2 tag found of unknown type. Skipping.\n");
+                    serial_log!("Multiboot 2 tag found of unknown type. Skipping.");
                 }
             }
             
@@ -184,42 +218,11 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, i386bootinfo: &mut i386Bo
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    set_eax(0xBad0Deed);
+    unsafe { debug_tools::set_eax(0xBad0Deed); }
     loop {}
 }
 
 
-fn set_eax(value: u32) {
-    unsafe {
-        core::arch::asm!(
-            "mov eax, {}",
-            in(reg) value
-            );
-    }
-}
-
-
-mod hal {
-    pub mod io {
-        use core::arch::asm;
-
-        #[inline(always)]
-        pub unsafe fn write_byte(port: u16, data: u8) {
-            asm!(   "out dx, al",
-                    in("al") data,
-                    in("dx") port);
-        }
-    }
-}
-
-fn serial_log(text: &str) {
-    for c in text.chars() {
-        if c == '\n' {
-            unsafe { hal::io::write_byte(0x3F8, b'\r' as u8); }
-        }
-        unsafe { hal::io::write_byte(0x3F8, c as u8); }
-    }
-}
 
 #[derive(Default)]
 #[repr(C)]
