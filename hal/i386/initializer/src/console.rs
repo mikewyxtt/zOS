@@ -164,8 +164,8 @@ fn console_scroll(bootinfo: &mut BootInfo) {
      * 
      * To clear the bottom row of text, we find the beginning of the bottom row bu subtracting the size of one row of text from the total size of the framebuffer, then we set the size of one
      * row of text (in bytes) to 0, which turns all of those pixels off.
-     *
      */
+     
     let base = bootinfo.framebuffer.addr as *mut u8;
     let row_size = bootinfo.framebuffer.pitch as usize * FONT_HEIGHT as usize;
 
