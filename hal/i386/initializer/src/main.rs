@@ -27,11 +27,12 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
         loop {}
     }
 
-    // Create bootinfo tables and set all values to their defaults
+    // Create bootinfo tables, set all values to their defaults, then initialize them
     let mut bootinfo: BootInfo = BootInfo::default();
     let mut i386bootinfo: i386BootInfo = i386BootInfo::default();
     initialize_boot_info(&mut bootinfo, &mut i386bootinfo, multiboot2_info_address);
-    
+
+
     // log values to console to check them
     early_log!(&mut bootinfo, "Multiboot 2 Info:");
     early_log!(&mut bootinfo, "\tMagic Number: 0x{:x}", magic);
@@ -50,12 +51,13 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     early_log!(&mut bootinfo, "\tMax chars: {}", bootinfo.console.max_chars);
     early_log!(&mut bootinfo, "\tMax lines: {}", bootinfo.console.max_line);
     early_log!(&mut bootinfo, "\tCursor position: {}", bootinfo.console.cursor_pos);
-    early_log!(&mut bootinfo, "\tCursor line: {}\n", bootinfo.console.line);
+    early_log!(&mut bootinfo, "\tCursor line: {}", bootinfo.console.line);
+    early_log!(&mut bootinfo, "\tLog buffer size: {}\n", bootinfo.early_log_buffer.size);
 
     early_log!(&mut bootinfo, "Serial Port Info:");
     early_log!(&mut bootinfo, "\tEnabled: {}", bootinfo.serial.enabled);
     early_log!(&mut bootinfo, "\tUsing Port: 0x{:x}\n", bootinfo.serial.port);
-
+    
 
     loop {}
 }
@@ -65,11 +67,11 @@ fn initialize_boot_info(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo
     serial_log!("Inside initialize_boot_info.");
 
     
-    // bootinfo.early_log_buffer.size = bootinfo.early_log_buffer.buffer.len();
+    bootinfo.early_log_buffer.size = bootinfo.early_log_buffer.buffer.len();
 
     // Setup serial port
     bootinfo.serial.enabled = true;
-    bootinfo.serial.port = 0x3f8;
+    bootinfo.serial.port = 0x3F8;
 
     parse_multiboot_header(bootinfo, i386bootinfo, multiboot2_info_address);
 
@@ -136,6 +138,7 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, i386bootinfo: &mut i386Bo
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     unsafe { debug_tools::set_eax(0xBad0Deed); }
+    serial_log!("{}", _info);
     loop {}
 }
 

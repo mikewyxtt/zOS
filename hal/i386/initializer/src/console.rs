@@ -4,8 +4,11 @@
 
 use crate::bootinfo::BootInfo;
 
-// use core::fmt::Write;
-// use crate::serial_log;
+
+const FONT_WIDTH: u32 = 8;
+const FONT_HEIGHT: u32 = 16;
+const TAB_WIDTH: u32 = 4;
+
 
 // Define a macro for printing to serial
 #[macro_export]
@@ -22,6 +25,7 @@ macro_rules! early_log {
         $crate::print_to_console($bootinfo, core::str::from_utf8(&buffer).unwrap());
     }}
 }
+
 
 /// prints a string to the fb console
 pub fn print_to_console(bootinfo: &mut BootInfo, text: &str) {
@@ -44,8 +48,7 @@ fn fb_plot_pixel(bootinfo: &BootInfo, x: u32, y: u32) {
 
     // Don't go beyond framebuffer boundary
     if x < bootinfo.framebuffer.width && y < bootinfo.framebuffer.height {
-        let offset = (y * bootinfo.framebuffer.width * bootinfo.framebuffer.depth) 
-            + (x * bootinfo.framebuffer.depth);
+        let offset = (y * bootinfo.framebuffer.width * bootinfo.framebuffer.depth) + (x * bootinfo.framebuffer.depth);
 
         // Plot a white pixel to the framebuffer by writing the color code 
         unsafe { *((bootinfo.framebuffer.addr + offset as usize) as *mut u32) = FB_COLOR_WHITE }
@@ -55,8 +58,6 @@ fn fb_plot_pixel(bootinfo: &BootInfo, x: u32, y: u32) {
 
 /// Prints a single char to the framebuffer
 fn console_put_char(bootinfo: &mut BootInfo, c: char) {
-
-    const TAB_WIDTH: u32 = 4;
 
     // If it's a newline or tab, just move the cursor without rendering a font.
     match c {
@@ -105,8 +106,6 @@ fn console_put_char(bootinfo: &mut BootInfo, c: char) {
      * 
      * To print the char we index to the ascii code offset of the array and iterate through each bit of the bitmap. We plot a pixel if the bit is set.
      */
-    const FONT_WIDTH: u32 = 8;
-    const FONT_HEIGHT: u32 = 16;
 
     let mut x = (bootinfo.console.cursor_pos * FONT_WIDTH) as u32; // Starting x position
     let mut y = (bootinfo.console.line * FONT_HEIGHT) as u32; // Starting y position
@@ -145,12 +144,24 @@ fn console_newline(bootinfo: &mut BootInfo) {
         bootinfo.console.cursor_pos = 0;
     } else {
         // Call a function to handle scrolling
+        bootinfo.console.cursor_pos = 0;
         console_scroll(bootinfo);
     }
 }
 
 fn console_scroll(bootinfo: &mut BootInfo) {
-    // do something
+    let base = bootinfo.framebuffer.addr as *mut u8;
+    let row_size = bootinfo.framebuffer.pitch as usize * FONT_HEIGHT as usize;
+
+    // Shift screen contents up one row
+    let src = (base as usize + row_size) as *mut u8;
+    let count = bootinfo.framebuffer.size as usize - row_size;
+    unsafe { core::ptr::copy(src, base, count); }
+    
+
+    // Clear the bottom row
+    let offset = (base as usize + bootinfo.framebuffer.size as usize - (bootinfo.framebuffer.pitch as usize * FONT_HEIGHT as usize)) as *mut u8;
+    unsafe { core::ptr::write_bytes(offset, 0, row_size); }
 }
 
 
