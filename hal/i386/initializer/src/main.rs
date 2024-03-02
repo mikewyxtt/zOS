@@ -38,7 +38,7 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     // log values to console to check them
     early_log!(&mut bootinfo, "Multiboot 2 Info:");
     early_log!(&mut bootinfo, "\tMagic Number: 0x{:x}", magic);
-    early_log!(&mut bootinfo, "\tMultiboot header addr: 0x{:x}\n", multiboot2_info_address);
+    early_log!(&mut bootinfo, "\tBoot Information struct Address: 0x{:x}\n", multiboot2_info_address);
 
     early_log!(&mut bootinfo, "Framebuffer Info:");
     early_log!(&mut bootinfo, "\tEnabled: {}", bootinfo.framebuffer.enabled);
