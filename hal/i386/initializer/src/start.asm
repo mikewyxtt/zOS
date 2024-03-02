@@ -1,7 +1,6 @@
 ; start.asm
 ; Multiboot2 compliant initializer entry stub
 
-;; ALL EDITS TO THIS FILE WILL REQUIRE A 'cargo clean' TO TAKE EFFECT!!
 
 [BITS 32]
 SECTION .multiboot
