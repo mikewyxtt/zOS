@@ -145,10 +145,13 @@ fn console_newline(bootinfo: &mut BootInfo) {
         bootinfo.console.cursor_pos = 0;
     } else {
         // Call a function to handle scrolling
-        //console_scroll(bootinfo);
+        console_scroll(bootinfo);
     }
 }
 
+fn console_scroll(bootinfo: &mut BootInfo) {
+    // do something
+}
 
 
 const CONSOLE_FONT: [[u8; 16]; 128] = [
