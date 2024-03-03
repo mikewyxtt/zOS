@@ -1,12 +1,10 @@
 [package]
-name = "sys_boot_bootinfo"
+name = "hal_boot_early_log"
 version = "0.0.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
-[lib]
-# Specify the root namespace name
-
+hal = { path = "../../lib/libhal" }
+hal_boot_bootinfo = { path = "../bootinfo" }

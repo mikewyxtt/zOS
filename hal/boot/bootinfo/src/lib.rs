@@ -1,4 +1,4 @@
-/*  sys/lib/libchimera/src/lib.rs - chimera main lib
+/* hal/boot/bootinfo/src/lib.rs - Universal bootinfo table
  *
  *  chimera  --  Advanced *NIX System
  *  Copyright (C) 2024  Free Software Foundation, Inc.
@@ -18,24 +18,7 @@
  */
 
 #![no_std]
+#![allow(dead_code)]
 
-/* Main chimera system api */
-
-
-
-pub mod hal {
-    //#[cfg(feature = "boot_components")]
-    pub mod boot { pub use hal::boot::*; }
-
-    //#[cfg(feature = "io_access")]
-    pub mod io { pub use hal::io::*; }
-}
-
-
-//#[cfg(feature = "debugtools")]
-pub mod debug { 
-    pub mod debugtools { 
-        pub use debugtools::serial_log::*;
-        pub use debugtools::reg_probe::*; 
-    } 
-}
+pub mod universal;
+pub mod i686;

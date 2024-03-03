@@ -26,8 +26,8 @@ mod multiboot2;
 mod initbootinfo;
 
 use core::panic::PanicInfo;
-use chimera::boot::bootinfo::BootInfo;
-use chimera::boot::bootinfo::arch::i386BootInfo;
+use chimera::hal::boot::bootinfo::BootInfo;
+use chimera::hal::boot::archbootinfo::ArchBootInfo;
 
 
 #[no_mangle]
@@ -39,8 +39,8 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
 
     // Create bootinfo tables, set all values to their defaults, then initialize them
     let mut bootinfo: BootInfo = BootInfo::default();
-    let mut i386bootinfo: i386BootInfo = i386BootInfo::default();
-    initbootinfo::initialize(&mut bootinfo, &mut i386bootinfo, multiboot2_info_address);
+    let mut archbootinfo: ArchBootInfo = ArchBootInfo::default();
+    initbootinfo::initialize(&mut bootinfo, &mut archbootinfo, multiboot2_info_address);
 
 
     // log values to console to check them
@@ -80,6 +80,6 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
 fn panic(_info: &PanicInfo) -> ! {
     use debugtools::*;
     serial_log!("{}", _info);
-    unsafe { chimera::debug_tools::set_eax(0xBad0Deed); }
+    unsafe { chimera::debug::debugtools::set_eax(0xBad0Deed); }
     loop {}
 }

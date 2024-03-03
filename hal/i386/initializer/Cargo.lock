@@ -6,9 +6,8 @@ version = 3
 name = "chimera"
 version = "0.0.0"
 dependencies = [
+ "debugtools",
  "hal",
- "sys_boot_bootinfo",
- "sys_boot_early_log",
 ]
 
 [[package]]
@@ -22,8 +21,13 @@ dependencies = [
 name = "hal"
 version = "0.0.0"
 dependencies = [
+ "hal_boot_bootinfo",
  "hal_io",
 ]
+
+[[package]]
+name = "hal_boot_bootinfo"
+version = "0.0.0"
 
 [[package]]
 name = "hal_io"
@@ -36,11 +40,3 @@ dependencies = [
  "chimera",
  "debugtools",
 ]
-
-[[package]]
-name = "sys_boot_bootinfo"
-version = "0.0.0"
-
-[[package]]
-name = "sys_boot_early_log"
-version = "0.0.0"

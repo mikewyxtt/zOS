@@ -7,8 +7,4 @@ edition = "2021"
 
 [dependencies]
 hal_io = { path = "../io" }
-
-
-[lib]
-# Specify the root namespace name
-
+hal_boot_bootinfo = { path = "../../boot/bootinfo" }

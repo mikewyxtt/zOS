@@ -17,11 +17,11 @@
  *  along with GRUB. If not, see <http://www.gnu.org/licenses/>.
  */
 
-use chimera::boot::bootinfo::BootInfo;
-use chimera::boot::bootinfo::arch::i386BootInfo;
+use chimera::hal::boot::bootinfo::BootInfo;
+use chimera::hal::boot::archbootinfo::ArchBootInfo;
 use crate::multiboot2::*;
 
-pub fn initialize(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo, multiboot2_info_address: usize) {
+pub fn initialize(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBootInfo, multiboot2_info_address: usize) {
     
     bootinfo.early_log_buffer.size = bootinfo.early_log_buffer.buffer.len();
 
@@ -33,12 +33,12 @@ pub fn initialize(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo, mult
         bootinfo.serial.port = 0x3F8;
     }
 
-    parse_multiboot_header(bootinfo, i386bootinfo, multiboot2_info_address);
+    parse_multiboot_header(bootinfo, archbootinfo, multiboot2_info_address);
 
 }
 
-pub fn parse_multiboot_header(bootinfo: &mut BootInfo, i386bootinfo: &mut i386BootInfo, multiboot2_info_address: usize) {
-    i386bootinfo.x = 0; // bs entry to hide warning
+pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBootInfo, multiboot2_info_address: usize) {
+    archbootinfo.x = 0; // bs entry to hide warning
     
     // pointer to first multiboot tag entry
     let mut tag: *const MultibootTag = (multiboot2_info_address + 8) as *const _;

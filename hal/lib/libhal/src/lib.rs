@@ -1,4 +1,4 @@
-/*  hal/lib/libhal/src/lib.rs - main HAL library
+/*  hal/lib/libhal/src/lib.rs - Main HAL library
  *
  *  chimera  --  Advanced *NIX System
  *  Copyright (C) 2024  Free Software Foundation, Inc.
@@ -19,4 +19,11 @@
 
 #![no_std]
 
-pub use hal_io as io;
+pub mod boot {
+    pub use hal_boot_bootinfo::universal as bootinfo;
+    pub use hal_boot_bootinfo::i686 as archbootinfo;
+}
+
+pub mod io {
+    pub use hal_io::*;
+}

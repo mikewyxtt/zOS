@@ -7,6 +7,4 @@ edition = "2021"
 
 [dependencies]
 hal = { path = "../../../hal/lib/libhal" }
-sys_boot_bootinfo = { path = "../boot/bootinfo" }
-sys_boot_early_log = { path = "../boot/early_log" }
-#sys_debugtools = { path = "../debugtools" }
+debugtools = { path = "../debugtools" }
