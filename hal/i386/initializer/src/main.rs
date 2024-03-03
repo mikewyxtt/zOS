@@ -1,4 +1,21 @@
-// main.rs
+/*  hal/i386/initializer/src/main.rs - initializer main
+ *
+ *  chimera  --  Advanced *NIX System
+ *  Copyright (C) 2024  Free Software Foundation, Inc.
+ *
+ *  chimera is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  chimera is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with GRUB. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #![no_std]
 #![no_main]
@@ -6,18 +23,11 @@
 
 
 mod multiboot2;
-mod i386bootinfo;
 mod initbootinfo;
-mod console;
-mod writer;
 
 use core::panic::PanicInfo;
 use chimera::boot::bootinfo::BootInfo;
-
-use i386bootinfo::i386BootInfo;
-use console::*;
-
-use debugtools::*;
+use chimera::boot::bootinfo::arch::i386BootInfo;
 
 
 #[no_mangle]
@@ -58,7 +68,7 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     // early_log!(&mut bootinfo, "\tEnabled: {}", bootinfo.serial.enabled);
     // early_log!(&mut bootinfo, "\tUsing Port: 0x{:x}\n", bootinfo.serial.port);
     
-
+    use debugtools::*;
     serial_log!("Hi! Regular number: {} Hex number: 0x{:x}", 50, 10);
     serial_log!("Hi! Regular number: {} Hex number: 0x{:x}", 50, 10);
 
@@ -68,8 +78,8 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    // use chimera::debugtools::*;
-    // unsafe { chimera::debug_tools::set_eax(0xBad0Deed); }
-    // serial_log!("{}", _info);
+    use debugtools::*;
+    serial_log!("{}", _info);
+    unsafe { chimera::debug_tools::set_eax(0xBad0Deed); }
     loop {}
 }
