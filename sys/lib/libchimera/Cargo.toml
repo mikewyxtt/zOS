@@ -6,5 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hal = { path = "../../../hal/lib/libhal" }
+hal = { path = "../../../hal/lib/" }
 debugtools = { path = "../debugtools" }
+sys_log = { path = "../log" }
+
+[features]
+default = []
+abc = []

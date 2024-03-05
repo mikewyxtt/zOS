@@ -31,6 +31,10 @@ pub mod hal {
     pub mod io { pub use hal::io::*; }
 }
 
+pub mod log {
+    pub use sys_log::*;
+}
+
 
 //#[cfg(feature = "debugtools")]
 pub mod debug { 

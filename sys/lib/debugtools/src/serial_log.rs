@@ -24,7 +24,10 @@ use core::fmt::{Write, Error, self};
 /// Prints a formatted string with NO trailing newline to serial output. It defaults to 0x3F8..
 #[macro_export]
 macro_rules! serial_log_plain {
-    ($($arg:tt)*) => ($crate::serial_log::_serial_log(format_args!($($arg)*)));
+    ($($arg:tt)*) => { 
+        ($crate::serial_log::_serial_log(format_args!("[ {} ]: ", env!("LOG_DISPLAY_NAME"))));
+        ($crate::serial_log::_serial_log(format_args!($($arg)*)));
+    }
 }
 
 
@@ -50,7 +53,6 @@ pub struct SerialWriter {
     buffer: [u8; 100],
     // position: usize,
 }
-
 
 
 impl SerialWriter {

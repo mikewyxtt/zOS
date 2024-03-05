@@ -3,7 +3,9 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-
+    // Set the name to be displayed when logging
+    println!("cargo:rustc-env=LOG_DISPLAY_NAME=initializer");
+    
     // Path to the NASM source file
     let nasm_src_path = "src/start.asm";
 

@@ -18,7 +18,7 @@
  */
 
 use chimera::hal::boot::bootinfo::BootInfo;
-use chimera::hal::boot::archbootinfo::ArchBootInfo;
+use chimera::hal::boot::bootinfo::i686::ArchBootInfo;
 use crate::multiboot2::*;
 
 pub fn initialize(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBootInfo, multiboot2_info_address: usize) {

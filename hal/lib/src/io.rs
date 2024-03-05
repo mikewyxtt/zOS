@@ -1,4 +1,4 @@
-/* hal/boot/bootinfo/src/lib.rs - Universal bootinfo table
+/*  hal/lib/src/io.rs - port i/o
  *
  *  chimera  --  Advanced *NIX System
  *  Copyright (C) 2024  Free Software Foundation, Inc.
@@ -17,8 +17,21 @@
  *  along with GRUB. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#![no_std]
-#![allow(dead_code)]
-
-pub mod universal;
-pub mod i686;
+ 
+ /// Writes a single byte to 'port'
+ #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+ #[inline(always)]
+ pub unsafe fn write_byte(port: u16, data: u8) {
+     core::arch::asm!(   "out dx, al",
+             in("al") data,
+             in("dx") port);
+ }
+ 
+ // Reads a single byte from 'port'
+ #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+ #[allow(unreachable_code)]
+ #[inline(always)]
+ pub unsafe fn read_byte(__port: u16) -> u8{
+     panic!("read_byte() not implemented.");
+     0
+ }

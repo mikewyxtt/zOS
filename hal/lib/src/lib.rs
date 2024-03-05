@@ -1,4 +1,4 @@
-/*  hal/lib/libhal/src/lib.rs - Main HAL library
+/*  hal/lib/src/lib.rs -- Bootinfo table definitions
  *
  *  chimera  --  Advanced *NIX System
  *  Copyright (C) 2024  Free Software Foundation, Inc.
@@ -18,12 +18,9 @@
  */
 
 #![no_std]
+#![allow(dead_code)]
 
-pub mod boot {
-    pub use hal_boot_bootinfo::universal as bootinfo;
-    pub use hal_boot_bootinfo::i686 as archbootinfo;
-}
-
-pub mod io {
-    pub use hal_io::*;
-}
+// re-export bootinfo as hal::boot::bootinfo
+mod bootinfo;
+pub mod boot { pub mod bootinfo { pub use crate::bootinfo::*; } }
+pub mod io;

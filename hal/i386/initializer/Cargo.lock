@@ -8,6 +8,7 @@ version = "0.0.0"
 dependencies = [
  "debugtools",
  "hal",
+ "sys_log",
 ]
 
 [[package]]
@@ -20,18 +21,6 @@ dependencies = [
 [[package]]
 name = "hal"
 version = "0.0.0"
-dependencies = [
- "hal_boot_bootinfo",
- "hal_io",
-]
-
-[[package]]
-name = "hal_boot_bootinfo"
-version = "0.0.0"
-
-[[package]]
-name = "hal_io"
-version = "0.0.0"
 
 [[package]]
 name = "initializer"
@@ -39,4 +28,12 @@ version = "0.1.0"
 dependencies = [
  "chimera",
  "debugtools",
+]
+
+[[package]]
+name = "sys_log"
+version = "0.0.0"
+dependencies = [
+ "debugtools",
+ "hal",
 ]

@@ -1,4 +1,4 @@
-/* hal/boot/early_log/src/lib.rs - Early logging library, used before fbdev is available
+/*  sys/lib/log/src/early_log.rs - Early logging library, used before fbdev is available
  *
  *  chimera  --  Advanced *NIX System
  *  Copyright (C) 2024  Free Software Foundation, Inc.
@@ -17,11 +17,9 @@
  *  along with GRUB. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#![no_std]
-#![allow(dead_code)]
 
 use hal::boot::bootinfo::BootInfo;
-use hal::boot::archbootinfo::ArchBootInfo;
+use core::fmt::{Write, Error, self};
 
 
 const FONT_WIDTH: u32 = 8;
@@ -31,21 +29,82 @@ const TAB_WIDTH: u32 = 4;
 /* just keep a txt buffer and refresh the screen after each write. this way messages before the fb are up arent lost, and it will prob look better */
 
 
-// Define a macro for printing to console
-// #[macro_export]
-// macro_rules! early_log {
-//     ($bootinfo:expr, $($arg:tt)*) => {{
-//         // Create a fixed-size buffer for the formatted string
-//         let mut buffer = [0u8; 1024];
-//         let mut cursor = $crate::writer::create_cursor(&mut buffer[..]);
+/// Prints a formatted string with NO trailing newline to console output.
+#[macro_export]
+macro_rules! early_log_plain {
+    ($bootinfo:expr, $($arg:tt)*) => { 
+        ($crate::early_log::_early_log($bootinfo, format_args!("[ {} ]: ", env!("LOG_DISPLAY_NAME"))));
+        ($crate::early_log::_early_log($bootinfo, format_args!($($arg)*)));
+    }
+}
 
-//         // Write the formatted string to the buffer
-//         let _ = write!(&mut cursor, "{}\n", core::format_args!($($arg)*));
 
-//         // Call the custom print function with the buffer content
-//         $crate::print_to_console($bootinfo, core::str::from_utf8(&buffer).unwrap());
-//     }}
-// }
+/// Prints a formatted string with a trailing newline to console output.
+#[macro_export]
+macro_rules! early_log {
+    ($bootinfo:expr) => ($crate::serial_log_plain!($bootinfo, "\n"));
+    ($bootinfo:expr, $($arg:tt)*) => ($crate::early_log_plain!($bootinfo, "{}\n", format_args!($($arg)*)));
+}
+
+
+/// Early logging function, used by early_log! macro. Creates a temporary text buffer and writes the formatted text to it.
+/// The text is then immediately output to the serial port, then the buffer is discarded.
+#[doc(hidden)]
+pub fn _early_log(bootinfo: &mut BootInfo, args: fmt::Arguments) {
+    let mut early_log_writer = EarlyLogWriter::new(bootinfo);
+    early_log_writer.write_fmt(args).unwrap();
+}
+
+
+/// Writer struct for fmt::Write to use. We don't need to do anything with it other than use it as a place to process the formatted text into, it is simple.
+pub struct EarlyLogWriter<'a> {
+    buffer: [u8; 100],
+    position: usize,
+    bootinfo: &'a mut BootInfo,
+}
+
+impl<'a> EarlyLogWriter<'a> {
+
+    /// Returns an empty SerialWriter struct
+    fn new(_bootinfo: &'a mut BootInfo) -> Self {
+        EarlyLogWriter {
+            buffer: [b'\0'; 100],
+            position: 0,
+            bootinfo: _bootinfo
+        }
+    }
+
+    /// Writes a single byte to the serial port
+    pub fn write_byte(&mut self, byte: u8) {
+        if byte == b'\n' {
+            // Process newline for serial port
+            if self.bootinfo.serial.enabled {
+                unsafe { hal::io::write_byte(self.bootinfo.serial.port, b'\r' as u8); }
+            }
+        }
+        // Write char to serial port
+        unsafe { hal::io::write_byte(self.bootinfo.serial.port, byte); }
+
+        console_put_char(self.bootinfo, byte as char);
+
+        self.position += 1;
+    }
+}
+
+/// In order to use the formatting stuff from the 'core' lib, we must provide the write_str implementation.
+impl<'a> fmt::Write for EarlyLogWriter<'a> {
+    fn write_str(&mut self, s: &str) -> Result<(), Error> {
+        for byte in s.bytes() {
+            self.write_byte(byte);
+        }
+        Ok(())
+    }
+}
+
+
+
+// og code
+
 
 
 /// prints a string to the fb console
