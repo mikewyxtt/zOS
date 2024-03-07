@@ -94,24 +94,28 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBo
                     let mut multiboot_mmap_entry = &(*multiboot_mmap_tag).entries[0] as *const MultibootMemoryMap;
 
                     let mut i = 0;
-
+                    
                     while (multiboot_mmap_entry as usize) < (tag as usize + (*tag).size as usize) {
                         bootinfo.memory_info.total_physical_memory += (*multiboot_mmap_entry).len as usize;
 
-                        if (*multiboot_mmap_entry).type_ == MULTIBOOT_MEMORY_AVAILABLE {
-                            bootinfo.memory_info.available_memory += (*multiboot_mmap_entry).len as usize;
-                            bootinfo.memory_info.memory_map[i].base_address = (*multiboot_mmap_entry).addr as usize;
-                            bootinfo.memory_info.memory_map[i].length = (*multiboot_mmap_entry).len as usize;
-                            bootinfo.memory_info.memory_map[i].type_ = CHIMERA_MEMORY_MAP_TYPE_AVAILABLE;
-                        }
-                        else {
-                            bootinfo.memory_info.memory_map[i].base_address = (*multiboot_mmap_entry).addr as usize;
-                            bootinfo.memory_info.memory_map[i].length = (*multiboot_mmap_entry).len as usize;
-                            bootinfo.memory_info.memory_map[i].type_ = CHIMERA_MEMORY_MAP_TYPE_RESERVED;
-                        }
+                        let entry_type = {
+                            if (*multiboot_mmap_entry).type_ == MULTIBOOT_MEMORY_AVAILABLE {
+                                bootinfo.memory_info.available_memory += (*multiboot_mmap_entry).len as usize;
+                                CHIMERA_MEMORY_MAP_TYPE_AVAILABLE
+                            }
+                            else {
+                                CHIMERA_MEMORY_MAP_TYPE_RESERVED
+                            }
+                        };
 
-                        i += 1;
+                        bootinfo.memory_info.memory_map[i] = chimera::hal::boot::bootinfo::MemoryMapEntry {
+                            base_address: (*multiboot_mmap_entry).addr as usize,
+                            length: (*multiboot_mmap_entry).len as usize,
+                            type_: entry_type,
+                        };
+
                         multiboot_mmap_entry = &(*multiboot_mmap_tag).entries[i] as *const MultibootMemoryMap;
+                        i += 1;
                     }
                     bootinfo.memory_info.memory_map_entries = i as u16;
                 }
