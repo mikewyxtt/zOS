@@ -21,6 +21,9 @@ use chimera::hal::boot::bootinfo::BootInfo;
 use chimera::hal::boot::bootinfo::i686::ArchBootInfo;
 use crate::multiboot2::*;
 
+const CHIMERA_MEMORY_MAP_TYPE_AVAILABLE: u8 = 0;
+const CHIMERA_MEMORY_MAP_TYPE_RESERVED: u8 = 1;
+
 
 pub fn initialize(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBootInfo, multiboot2_info_address: usize) {
     
@@ -99,12 +102,12 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBo
                             bootinfo.memory_info.available_memory += (*multiboot_mmap_entry).len as usize;
                             bootinfo.memory_info.memory_map[i].base_address = (*multiboot_mmap_entry).addr as usize;
                             bootinfo.memory_info.memory_map[i].length = (*multiboot_mmap_entry).len as usize;
-                            bootinfo.memory_info.memory_map[i].type_ = 0;
+                            bootinfo.memory_info.memory_map[i].type_ = CHIMERA_MEMORY_MAP_TYPE_AVAILABLE;
                         }
                         else {
                             bootinfo.memory_info.memory_map[i].base_address = (*multiboot_mmap_entry).addr as usize;
                             bootinfo.memory_info.memory_map[i].length = (*multiboot_mmap_entry).len as usize;
-                            bootinfo.memory_info.memory_map[i].type_ = 1;
+                            bootinfo.memory_info.memory_map[i].type_ = CHIMERA_MEMORY_MAP_TYPE_RESERVED;
                         }
 
                         i += 1;
