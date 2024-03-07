@@ -56,20 +56,23 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBo
 
                     if (*multiboot_fb_tag).common.framebuffer_type == 1 {
                         // Type of 1 means RGB, 2 means EGA text mode (unsupported), 0 means indexed color (unsupported)
-                        bootinfo.framebuffer.enabled = true;
-                        bootinfo.framebuffer.addr = (*multiboot_fb_tag).common.framebuffer_addr as usize;
-                        bootinfo.framebuffer.width = (*multiboot_fb_tag).common.framebuffer_width;
-                        bootinfo.framebuffer.height = (*multiboot_fb_tag).common.framebuffer_height;
-                        bootinfo.framebuffer.pitch = (*multiboot_fb_tag).common.framebuffer_pitch;
-                        bootinfo.framebuffer.depth = ((*multiboot_fb_tag).common.framebuffer_bpp / 8) as u32;
-                        bootinfo.framebuffer.size = (bootinfo.framebuffer.width as u64 * bootinfo.framebuffer.height as u64 * bootinfo.framebuffer.depth as u64) as u64;
+                        bootinfo.framebuffer = chimera::hal::boot::bootinfo::Framebuffer {
+                            enabled: true,
+                            addr: (*multiboot_fb_tag).common.framebuffer_addr as usize,
+                            width: (*multiboot_fb_tag).common.framebuffer_width,
+                            height: (*multiboot_fb_tag).common.framebuffer_height,
+                            pitch: (*multiboot_fb_tag).common.framebuffer_pitch,
+                            depth: ((*multiboot_fb_tag).common.framebuffer_bpp / 8) as u32,
+                            size: (bootinfo.framebuffer.width as u64 * bootinfo.framebuffer.height as u64 * bootinfo.framebuffer.depth as u64) as u64,
+                        };
 
-                    
                         // Since we have a framebuffer, initialize the console.
-                        bootinfo.console.cursor_pos = 0;
-                        bootinfo.console.line = 0;
-                        bootinfo.console.max_chars = bootinfo.framebuffer.width / 8;
-                        bootinfo.console.max_line = bootinfo.framebuffer.height / 16;
+                        bootinfo.console = chimera::hal::boot::bootinfo::Console {
+                            cursor_pos: 0,
+                            line: 0,
+                            max_chars: bootinfo.framebuffer.width / 8,
+                            max_line: bootinfo.framebuffer.height / 16,
+                        };
                     }
                 }
             }
@@ -90,32 +93,35 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBo
                  *  longer than the tag at the beginning of the while loop, we have read all of the entries.
                  */
                 unsafe {
+                    // Create pointers to the multiboot2 memory map tag and the first multiboot2 memory map entry
                     let multiboot_mmap_tag: *const MultibootTagMmap = core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize);
                     let mut multiboot_mmap_entry = &(*multiboot_mmap_tag).entries[0] as *const MultibootMemoryMap;
 
+                    // Iterate through multiboot memory map entries
                     let mut i = 0;
-                    
+
                     while (multiboot_mmap_entry as usize) < (tag as usize + (*tag).size as usize) {
                         bootinfo.memory_info.total_physical_memory += (*multiboot_mmap_entry).len as usize;
 
-                        let entry_type = {
-                            if (*multiboot_mmap_entry).type_ == MULTIBOOT_MEMORY_AVAILABLE {
-                                bootinfo.memory_info.available_memory += (*multiboot_mmap_entry).len as usize;
-                                CHIMERA_MEMORY_MAP_TYPE_AVAILABLE
-                            }
-                            else {
-                                CHIMERA_MEMORY_MAP_TYPE_RESERVED
-                            }
-                        };
+                        // Determine entry type
+                        let entry_type;
+                        if (*multiboot_mmap_entry).type_ == MULTIBOOT_MEMORY_AVAILABLE {
+                            bootinfo.memory_info.available_memory += (*multiboot_mmap_entry).len as usize;
+                            entry_type = CHIMERA_MEMORY_MAP_TYPE_AVAILABLE;
+                        }
+                        else {
+                            entry_type = CHIMERA_MEMORY_MAP_TYPE_RESERVED;
+                        }
 
+                        // Add memory map entry to bootinfo memory map table
                         bootinfo.memory_info.memory_map[i] = chimera::hal::boot::bootinfo::MemoryMapEntry {
                             base_address: (*multiboot_mmap_entry).addr as usize,
                             length: (*multiboot_mmap_entry).len as usize,
                             type_: entry_type,
                         };
 
-                        multiboot_mmap_entry = &(*multiboot_mmap_tag).entries[i] as *const MultibootMemoryMap;
                         i += 1;
+                        multiboot_mmap_entry = &(*multiboot_mmap_tag).entries[i] as *const MultibootMemoryMap;
                     }
                     bootinfo.memory_info.memory_map_entries = i as u16;
                 }
