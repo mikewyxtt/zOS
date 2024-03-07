@@ -63,7 +63,7 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBo
                             height: (*multiboot_fb_tag).common.framebuffer_height,
                             pitch: (*multiboot_fb_tag).common.framebuffer_pitch,
                             depth: ((*multiboot_fb_tag).common.framebuffer_bpp / 8) as u32,
-                            size: (bootinfo.framebuffer.width as u64 * bootinfo.framebuffer.height as u64 * bootinfo.framebuffer.depth as u64) as u64,
+                            size: (((*multiboot_fb_tag).common.framebuffer_width as u64) * ((*multiboot_fb_tag).common.framebuffer_height as u64) * ((*multiboot_fb_tag).common.framebuffer_bpp / 8) as u64) as u64,
                         };
 
                         // Since we have a framebuffer, initialize the console.
