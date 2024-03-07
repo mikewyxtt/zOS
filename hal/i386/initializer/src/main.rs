@@ -77,10 +77,8 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     for _ in 0..bootinfo.memory_info.memory_map_entries {
         if bootinfo.memory_info.memory_map[i].type_ == 0 {
             early_log!(&mut bootinfo, "\tAvailable Entry:");
-            let a = bootinfo.memory_info.memory_map[i].base_address;
-            early_log!(&mut bootinfo, "\t\tBase Address: 0x{:x}", a);
-            let a = bootinfo.memory_info.memory_map[i].length;
-            early_log!(&mut bootinfo, "\t\tLength: {}KB", a / 1024);
+            early_log!(&mut bootinfo, "\t\tBase Address: 0x{:x}", bootinfo_clone.memory_info.memory_map[i].base_address);
+            early_log!(&mut bootinfo, "\t\tLength: {}KB", bootinfo_clone.memory_info.memory_map[i].length / 1024);
         }
         i += 1;
     }
@@ -90,10 +88,8 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     for _ in 0..bootinfo.memory_info.memory_map_entries {
         if bootinfo.memory_info.memory_map[i].type_ == 1 {
             early_log!(&mut bootinfo, "\tReserved Entry:");
-            let a = bootinfo.memory_info.memory_map[i].base_address;
-            early_log!(&mut bootinfo, "\t\tBase Address: 0x{:x}", a);
-            let a = bootinfo.memory_info.memory_map[i].length;
-            early_log!(&mut bootinfo, "\t\tLength: {}KB", a / 1024);
+            early_log!(&mut bootinfo, "\t\tBase Address: 0x{:x}", bootinfo_clone.memory_info.memory_map[i].base_address);
+            early_log!(&mut bootinfo, "\t\tLength: {}KB", bootinfo_clone.memory_info.memory_map[i].length / 1024);
         }
         i += 1;
     }
