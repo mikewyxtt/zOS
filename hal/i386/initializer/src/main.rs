@@ -43,8 +43,9 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     let mut archbootinfo: ArchBootInfo = ArchBootInfo::default();
     initbootinfo::initialize(&mut bootinfo, &mut archbootinfo, multiboot2_info_address);
 
-    let bootinfo_clone = bootinfo.clone();
     // log values to console to check them
+    let bootinfo_clone = bootinfo.clone();
+    
     early_log!(&mut bootinfo, "Multiboot 2 Info:");
     early_log!(&mut bootinfo, "\tMagic Number: 0x{:x}", magic);
     early_log!(&mut bootinfo, "\tBoot Information struct Address: 0x{:x}\n", multiboot2_info_address);
