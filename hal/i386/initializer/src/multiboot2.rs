@@ -81,6 +81,12 @@ pub const MULTIBOOT_LOAD_PREFERENCE_HIGH: u32 = 2;
 pub const MULTIBOOT_CONSOLE_FLAGS_CONSOLE_REQUIRED: u32 = 1;
 pub const MULTIBOOT_CONSOLE_FLAGS_EGA_TEXT_SUPPORTED: u32 = 2;
 
+pub const MULTIBOOT_MEMORY_AVAILABLE: u32 = 1;
+pub const MULTIBOOT_MEMORY_RESERVED: u32 = 2;
+pub const MULTIBOOT_MEMORY_ACPI_RECLAIMABLE: u32 = 3;
+pub const MULTIBOOT_MEMORY_NVS: u32 = 4;
+pub const MULTIBOOT_MEMORY_BADRAM: u32 = 5;
+
 // Data structuers
 #[repr(C)]
 pub struct MultibootHeader {
@@ -172,14 +178,6 @@ pub struct MultibootColor {
     }
 
 #[repr(C)]
-pub struct MultibootMmapEntry {
-    pub addr: u64,
-    pub len: u64,
-    pub type_: u32,
-    pub zero: u32,
-}
-
-#[repr(C)]
 pub struct MultibootTag {
     pub type_: u32,
     pub size: u32,
@@ -219,12 +217,20 @@ pub struct MultibootTagBootdev {
 }
 
 #[repr(C)]
+pub struct MultibootMemoryMap {
+    pub addr: u64,
+    pub len: u64,
+    pub type_: u32,
+    pub reserved: u32,
+}
+
+#[repr(C)]
 pub struct MultibootTagMmap {
     pub type_: u32,
     pub size: u32,
     pub entry_size: u32,
     pub entry_version: u32,
-    pub entries: [MultibootMmapEntry], // Flexible array member
+    pub entries: [MultibootMemoryMap], // Flexible array member
 }
 
 #[repr(C)]
