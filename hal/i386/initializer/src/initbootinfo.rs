@@ -48,27 +48,26 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBo
     loop {
         match unsafe { (*tag).type_ } {
             MULTIBOOT_TAG_TYPE_FRAMEBUFFER => {
-                
-                let fbtag: *const MultibootTagFramebuffer = unsafe { core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize) };
+                unsafe {
+                    let fbtag: *const MultibootTagFramebuffer = core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize);
 
-                if unsafe { (*fbtag).common.framebuffer_type == 1 } {
-                    // Type of 1 means RGB, 2 means EGA text mode (unsupported), 0 means indexed color (unsupported)
-                    bootinfo.framebuffer.enabled = true;
-                    unsafe {
+                    if (*fbtag).common.framebuffer_type == 1 {
+                        // Type of 1 means RGB, 2 means EGA text mode (unsupported), 0 means indexed color (unsupported)
+                        bootinfo.framebuffer.enabled = true;
                         bootinfo.framebuffer.addr = (*fbtag).common.framebuffer_addr as usize;
                         bootinfo.framebuffer.width = (*fbtag).common.framebuffer_width;
                         bootinfo.framebuffer.height = (*fbtag).common.framebuffer_height;
                         bootinfo.framebuffer.pitch = (*fbtag).common.framebuffer_pitch;
                         bootinfo.framebuffer.depth = ((*fbtag).common.framebuffer_bpp / 8) as u32;
                         bootinfo.framebuffer.size = (bootinfo.framebuffer.width as u64 * bootinfo.framebuffer.height as u64 * bootinfo.framebuffer.depth as u64) as u64;
-                    }
-                    
 
-                    // Since we have a framebuffer, initialize the console.
-                    bootinfo.console.cursor_pos = 0;
-                    bootinfo.console.line = 0;
-                    bootinfo.console.max_chars = bootinfo.framebuffer.width / 8;
-                    bootinfo.console.max_line = bootinfo.framebuffer.height / 16;
+                    
+                        // Since we have a framebuffer, initialize the console.
+                        bootinfo.console.cursor_pos = 0;
+                        bootinfo.console.line = 0;
+                        bootinfo.console.max_chars = bootinfo.framebuffer.width / 8;
+                        bootinfo.console.max_line = bootinfo.framebuffer.height / 16;
+                    }
                 }
             }
 
@@ -81,38 +80,31 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBo
             }
 
             MULTIBOOT_TAG_TYPE_MMAP => {
-                let mmap_tag: *const MultibootTagMmap = unsafe { core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize) };
+                unsafe {
+                    let mmap_tag: *const MultibootTagMmap = core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize);
+                    let mut mmap = &(*mmap_tag).entries[0] as *const MultibootMemoryMap;
+                    let mut i = 0;
 
-                let mut i = 0;
+                    while (mmap as usize) < (tag as usize + (*tag).size as usize) {
+                        bootinfo.memory_info.total_physical_memory += (*mmap).len as usize;
 
-                loop {
-                    let mmap = unsafe { &(*mmap_tag).entries[i] as *const MultibootMemoryMap };
-
-                    unsafe {
-                        if (mmap as usize) < (tag as usize + (*tag).size as usize) {
-                            
-                            bootinfo.memory_info.total_physical_memory += (*mmap).len as usize;
-
-                            if (*mmap).type_ == MULTIBOOT_MEMORY_AVAILABLE {
-                                bootinfo.memory_info.available_memory += (*mmap).len as usize;
-                                bootinfo.memory_info.memory_map[i].base_address = (*mmap).addr as usize;
-                                bootinfo.memory_info.memory_map[i].length = (*mmap).len as usize;
-                                bootinfo.memory_info.memory_map[i].type_ = 0;
-                            }
-                            else {
-                                bootinfo.memory_info.memory_map[i].base_address = (*mmap).addr as usize;
-                                bootinfo.memory_info.memory_map[i].length = (*mmap).len as usize;
-                                bootinfo.memory_info.memory_map[i].type_ = 1;
-                            }
+                        if (*mmap).type_ == MULTIBOOT_MEMORY_AVAILABLE {
+                            bootinfo.memory_info.available_memory += (*mmap).len as usize;
+                            bootinfo.memory_info.memory_map[i].base_address = (*mmap).addr as usize;
+                            bootinfo.memory_info.memory_map[i].length = (*mmap).len as usize;
+                            bootinfo.memory_info.memory_map[i].type_ = 0;
                         }
                         else {
-                            break;
+                            bootinfo.memory_info.memory_map[i].base_address = (*mmap).addr as usize;
+                            bootinfo.memory_info.memory_map[i].length = (*mmap).len as usize;
+                            bootinfo.memory_info.memory_map[i].type_ = 1;
                         }
-                    }
 
-                    i += 1;
+                        i += 1;
+                        mmap = &(*mmap_tag).entries[i] as *const MultibootMemoryMap;
+                    }
+                    bootinfo.memory_info.memory_map_entries = i as u16;
                 }
-                bootinfo.memory_info.memory_map_entries = (i) as u16;
             }
 
             // Handle tag types we don't care about
