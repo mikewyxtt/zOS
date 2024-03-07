@@ -26,7 +26,7 @@
   *
   */
 
- #[derive(Default)]
+ #[derive(Default, Copy, Clone)]
  #[repr(C)]
  pub struct BootInfo {
      pub early_log_buffer: EarlyLogBuffer,
@@ -40,7 +40,7 @@
      pub config: Config,
  }
  
- 
+ #[derive(Copy, Clone)]
  #[repr(C)]
  pub struct EarlyLogBuffer {
      pub size: usize,
@@ -69,7 +69,7 @@
      }
  }
  
- #[derive(Default)]
+ #[derive(Default, Copy, Clone)]
  #[repr(C)]
  pub struct Framebuffer {
      pub enabled: bool,
@@ -81,7 +81,7 @@
      pub size: u64,
  }
  
- #[derive(Default)]
+ #[derive(Default, Copy, Clone)]
  #[repr(C)]
  pub struct Console {
      pub cursor_pos: u32,
@@ -90,14 +90,14 @@
      pub max_line: u32,
  }
  
- #[derive(Default)]
+ #[derive(Default, Copy, Clone)]
  #[repr(C)]
  pub struct Serial {
      pub enabled: bool,
      pub port: u16,
  }
  
- #[derive(Default)]
+ #[derive(Default, Copy, Clone)]
  #[repr(C)]
  pub struct ComponentInfo {
      pub present: bool,
@@ -106,7 +106,7 @@
      pub state: u8,
  }
  
- #[derive(Default)]
+ #[derive(Default, Copy, Clone)]
  #[repr(C)]
  pub struct CriticalComponents {
      pub vfs: ComponentInfo,
@@ -120,6 +120,7 @@
  }
  
 
+ #[derive(Copy, Clone)]
  #[repr(C)]
  pub struct MemoryInfo {
      pub total_physical_memory: usize,
@@ -152,15 +153,14 @@
      pub type_: u8,
  }
  
- #[derive(Default)]
+ #[derive(Default, Copy, Clone)]
  #[repr(C)]
  pub struct CPUInfo {
      pub clock_speed: u8,
      pub logical_cpus: u8,
  }
  
- #[derive(Default)]
- #[repr(C)]
+ #[derive(Default, Copy, Clone)]
  pub struct Config {
      pub headless: bool,
  }
