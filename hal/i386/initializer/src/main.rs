@@ -103,6 +103,6 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
 fn panic(_info: &PanicInfo) -> ! {
     use debugtools::*;
     serial_log!("{}", _info);
-    unsafe { chimera::debug::debugtools::set_eax(0xBad0Deed); }
+    unsafe { chimera::debug::debugtools::set_eax(0xBadDeed); }
     loop {}
 }
