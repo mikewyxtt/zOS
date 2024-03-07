@@ -80,6 +80,12 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBo
             }
 
             MULTIBOOT_TAG_TYPE_MMAP => {
+                /* To get the memory map from the bootloader we must first get a pointer to the Multiboot Memory Map Tag so we can find the memory entries at the end of it
+                 *  Once we have the memory map tag, we can get a pointer to the first memory map entry
+                 *  Now that we have a pointer to the first memory map entry, we can begin copying its fields into our bootinfo table. We will then iterate through each entry,
+                 *  making sure not to go any further than the last entry by comparing the mmap entry pointer to the total size of the tag. If the memory map entry pointer is
+                 *  longer than the tag at the beginning of the while loop, we have read all of the entries.
+                 */
                 unsafe {
                     let multiboot_mmap_tag: *const MultibootTagMmap = core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize);
                     let mut multiboot_mmap_entry = &(*multiboot_mmap_tag).entries[0] as *const MultibootMemoryMap;
