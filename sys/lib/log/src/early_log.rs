@@ -74,18 +74,22 @@ impl<'a> EarlyLogWriter<'a> {
         }
     }
 
-    /// Writes a single byte to the serial port
+    /// Writes a single byte to framebuffer and serial port if it's enabled
     pub fn write_byte(&mut self, byte: u8) {
-        if byte == b'\n' {
-            // Process newline for serial port
-            if self.bootinfo.serial.enabled {
+        
+        // Write char to serial port if it's enabled
+        if self.bootinfo.serial.enabled {
+            // Add carriage return if it's a newline, serial is weird
+            if byte == b'\n' {
                 unsafe { hal::io::write_byte(self.bootinfo.serial.port, b'\r' as u8); }
             }
-        }
-        // Write char to serial port
-        unsafe { hal::io::write_byte(self.bootinfo.serial.port, byte); }
 
-        console_put_char(self.bootinfo, byte as char);
+            unsafe { hal::io::write_byte(self.bootinfo.serial.port, byte); }
+        }
+
+        if self.bootinfo.framebuffer.enabled {
+            console_put_char(self.bootinfo, byte as char);
+        }
 
         self.position += 1;
     }
@@ -98,21 +102,6 @@ impl<'a> fmt::Write for EarlyLogWriter<'a> {
             self.write_byte(byte);
         }
         Ok(())
-    }
-}
-
-
-
-// og code
-
-
-
-/// prints a string to the fb console
-pub fn print_to_console(bootinfo: &mut BootInfo, text: &str) {
-    for c in text.chars() {
-        if c != '\0' {
-            console_put_char(bootinfo, c);
-        }
     }
 }
 
@@ -160,7 +149,22 @@ fn console_put_char(bootinfo: &mut BootInfo, c: char) {
         _ => {}
     }
 
+    // Draw the char
+    console_draw_char(bootinfo, c);
+    
 
+    // Index cursor forward
+    if bootinfo.console.cursor_pos < bootinfo.console.max_chars - 1 {
+        bootinfo.console.cursor_pos += 1;
+    } else {
+        console_newline(bootinfo);
+        return;
+    }
+}
+
+
+/// Draws a char on the framebuffer
+fn console_draw_char(bootinfo: &mut BootInfo, c: char) {
     /*
      * The early log framebuffer console is very simple. It uses bitmap fonts which essentially sets a bit for each pixel in the font. The fonts are 8 pixels wide and 16 pixels tall.
      * The array is easy to use, the first index is the ASCII character code, the second represents the row of pixels within the font. There are 16 rows.
@@ -187,33 +191,24 @@ fn console_put_char(bootinfo: &mut BootInfo, c: char) {
      * To print the char we index to the ascii code offset of the array and iterate through each bit of the bitmap. We plot a pixel if the bit is set.
      */
 
-    let mut x = (bootinfo.console.cursor_pos * FONT_WIDTH) as u32; // Starting x position
-    let mut y = (bootinfo.console.line * FONT_HEIGHT) as u32; // Starting y position
-
-    // Iterate through each row(byte) of the bitmap font
-    for row in CONSOLE_FONT[c as usize].iter() {
-
-        // Iterate through each bit(column) of the bitmap font
-        for bit in (0..FONT_WIDTH).rev() {
-
-            // Check if the bit at the current position is set in the font character
-            if (row >> bit) & 1 != 0 { 
-                fb_plot_pixel(bootinfo, x, y);
-            }
-            x += 1;
-        }
-        y += 1; // Move to the next row
-        x -= FONT_WIDTH; // Reset x back to the start of the row
-    }
-
-
-    // Index cursor forward
-    if bootinfo.console.cursor_pos < bootinfo.console.max_chars - 1 {
-        bootinfo.console.cursor_pos += 1;
-    } else {
-        console_newline(bootinfo);
-        return;
-    }
+     let mut x = (bootinfo.console.cursor_pos * FONT_WIDTH) as u32; // Starting x position
+     let mut y = (bootinfo.console.line * FONT_HEIGHT) as u32; // Starting y position
+ 
+     // Iterate through each row(byte) of the bitmap font
+     for row in CONSOLE_FONT[c as usize].iter() {
+ 
+         // Iterate through each bit(column) of the bitmap font
+         for bit in (0..FONT_WIDTH).rev() {
+ 
+             // Check if the bit at the current position is set in the font character
+             if (row >> bit) & 1 != 0 { 
+                 fb_plot_pixel(bootinfo, x, y);
+             }
+             x += 1;
+         }
+         y += 1; // Move to the next row
+         x -= FONT_WIDTH; // Reset x back to the start of the row
+     }
 }
 
 fn console_newline(bootinfo: &mut BootInfo) {
