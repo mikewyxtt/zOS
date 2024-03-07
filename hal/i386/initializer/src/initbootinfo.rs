@@ -49,16 +49,16 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBo
         match unsafe { (*tag).type_ } {
             MULTIBOOT_TAG_TYPE_FRAMEBUFFER => {
                 unsafe {
-                    let fbtag: *const MultibootTagFramebuffer = core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize);
+                    let multiboot_fb_tag: *const MultibootTagFramebuffer = core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize);
 
-                    if (*fbtag).common.framebuffer_type == 1 {
+                    if (*multiboot_fb_tag).common.framebuffer_type == 1 {
                         // Type of 1 means RGB, 2 means EGA text mode (unsupported), 0 means indexed color (unsupported)
                         bootinfo.framebuffer.enabled = true;
-                        bootinfo.framebuffer.addr = (*fbtag).common.framebuffer_addr as usize;
-                        bootinfo.framebuffer.width = (*fbtag).common.framebuffer_width;
-                        bootinfo.framebuffer.height = (*fbtag).common.framebuffer_height;
-                        bootinfo.framebuffer.pitch = (*fbtag).common.framebuffer_pitch;
-                        bootinfo.framebuffer.depth = ((*fbtag).common.framebuffer_bpp / 8) as u32;
+                        bootinfo.framebuffer.addr = (*multiboot_fb_tag).common.framebuffer_addr as usize;
+                        bootinfo.framebuffer.width = (*multiboot_fb_tag).common.framebuffer_width;
+                        bootinfo.framebuffer.height = (*multiboot_fb_tag).common.framebuffer_height;
+                        bootinfo.framebuffer.pitch = (*multiboot_fb_tag).common.framebuffer_pitch;
+                        bootinfo.framebuffer.depth = ((*multiboot_fb_tag).common.framebuffer_bpp / 8) as u32;
                         bootinfo.framebuffer.size = (bootinfo.framebuffer.width as u64 * bootinfo.framebuffer.height as u64 * bootinfo.framebuffer.depth as u64) as u64;
 
                     
@@ -81,27 +81,28 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBo
 
             MULTIBOOT_TAG_TYPE_MMAP => {
                 unsafe {
-                    let mmap_tag: *const MultibootTagMmap = core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize);
-                    let mut mmap = &(*mmap_tag).entries[0] as *const MultibootMemoryMap;
+                    let multiboot_mmap_tag: *const MultibootTagMmap = core::ptr::from_raw_parts(tag as *const _, (*tag).size as usize);
+                    let mut multiboot_mmap_entry = &(*multiboot_mmap_tag).entries[0] as *const MultibootMemoryMap;
+
                     let mut i = 0;
 
-                    while (mmap as usize) < (tag as usize + (*tag).size as usize) {
-                        bootinfo.memory_info.total_physical_memory += (*mmap).len as usize;
+                    while (multiboot_mmap_entry as usize) < (tag as usize + (*tag).size as usize) {
+                        bootinfo.memory_info.total_physical_memory += (*multiboot_mmap_entry).len as usize;
 
-                        if (*mmap).type_ == MULTIBOOT_MEMORY_AVAILABLE {
-                            bootinfo.memory_info.available_memory += (*mmap).len as usize;
-                            bootinfo.memory_info.memory_map[i].base_address = (*mmap).addr as usize;
-                            bootinfo.memory_info.memory_map[i].length = (*mmap).len as usize;
+                        if (*multiboot_mmap_entry).type_ == MULTIBOOT_MEMORY_AVAILABLE {
+                            bootinfo.memory_info.available_memory += (*multiboot_mmap_entry).len as usize;
+                            bootinfo.memory_info.memory_map[i].base_address = (*multiboot_mmap_entry).addr as usize;
+                            bootinfo.memory_info.memory_map[i].length = (*multiboot_mmap_entry).len as usize;
                             bootinfo.memory_info.memory_map[i].type_ = 0;
                         }
                         else {
-                            bootinfo.memory_info.memory_map[i].base_address = (*mmap).addr as usize;
-                            bootinfo.memory_info.memory_map[i].length = (*mmap).len as usize;
+                            bootinfo.memory_info.memory_map[i].base_address = (*multiboot_mmap_entry).addr as usize;
+                            bootinfo.memory_info.memory_map[i].length = (*multiboot_mmap_entry).len as usize;
                             bootinfo.memory_info.memory_map[i].type_ = 1;
                         }
 
                         i += 1;
-                        mmap = &(*mmap_tag).entries[i] as *const MultibootMemoryMap;
+                        multiboot_mmap_entry = &(*multiboot_mmap_tag).entries[i] as *const MultibootMemoryMap;
                     }
                     bootinfo.memory_info.memory_map_entries = i as u16;
                 }
