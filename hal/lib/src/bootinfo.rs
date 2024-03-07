@@ -119,35 +119,37 @@
      pub tty_dev: ComponentInfo,
  }
  
- #[derive(Default)]
+
  #[repr(C)]
  pub struct MemoryInfo {
      pub total_physical_memory: usize,
      pub available_memory: usize,
-     pub memory_map: MemoryMap,
+     pub memory_map: [MemoryMapEntry; 100],
+     pub memory_map_entries: u16,
  }
- 
- #[repr(C)]
- pub struct MemoryMap {
-     pub entry: [MemoryMapEntry; 100],
- }
- 
- impl Default for MemoryMap {
-     fn default() -> Self {
-         // Initialize each entry in the array to its default value
-         let entry = [MemoryMapEntry::default(); 100];
- 
-         // Construct MemoryMap struct with initialized entry array
-         MemoryMap { entry }
-     }
- }
+
+ impl Default for MemoryInfo {
+    fn default() -> Self {
+        // Initialize each entry in the array to its default value
+        let memory_map = [MemoryMapEntry::default(); 100];
+
+        // Construct MemoryMap struct with initialized entry array
+        MemoryInfo { 
+            total_physical_memory: 0,
+            available_memory: 0,
+            memory_map,
+            memory_map_entries: 0,
+        }
+    }
+}
+
  
  #[derive(Default, Copy, Clone)]
  #[repr(C)]
  pub struct MemoryMapEntry {
      pub base_address: usize,
      pub length: usize,
-     pub memory_type: u8,
+     pub type_: u8,
  }
  
  #[derive(Default)]
