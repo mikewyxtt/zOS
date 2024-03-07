@@ -80,10 +80,41 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     early_log!(&mut bootinfo, "\tEnabled: {}", a);
     let a = bootinfo.serial.port;
     early_log!(&mut bootinfo, "\tUsing Port: 0x{:x}\n", a);
+
+    early_log!(&mut bootinfo, "Memory Info:");
+    let a = bootinfo.memory_info.total_physical_memory;
+    early_log!(&mut bootinfo, "\tPhysical memory: {}KB", a / 1024);
+    let a = bootinfo.memory_info.available_memory;
+    early_log!(&mut bootinfo, "\tAvailable memory: {}KB", a / 1024);
+    let a = bootinfo.memory_info.memory_map_entries;
+    early_log!(&mut bootinfo, "\tMemory map entries: {}", a);
+
     
-    // use debugtools::*;
-    // serial_log!("Hi! Regular number: {} Hex number: 0x{:x}", 50, 10);
-    // serial_log!("Hi! Regular number: {} Hex number: 0x{:x}", 50, 10);
+    // Print available entries first
+    let mut i = 0;
+    for _ in 0..bootinfo.memory_info.memory_map_entries {
+        if bootinfo.memory_info.memory_map[i].type_ == 0 {
+            early_log!(&mut bootinfo, "\tAvailable Entry:");
+            let a = bootinfo.memory_info.memory_map[i].base_address;
+            early_log!(&mut bootinfo, "\t\tBase Address: 0x{:x}", a);
+            let a = bootinfo.memory_info.memory_map[i].length;
+            early_log!(&mut bootinfo, "\t\tLength: {}KB", a / 1024);
+        }
+        i += 1;
+    }
+
+    // Print reserved entries
+    let mut i = 0;
+    for _ in 0..bootinfo.memory_info.memory_map_entries {
+        if bootinfo.memory_info.memory_map[i].type_ == 1 {
+            early_log!(&mut bootinfo, "\tReserved Entry:");
+            let a = bootinfo.memory_info.memory_map[i].base_address;
+            early_log!(&mut bootinfo, "\t\tBase Address: 0x{:x}", a);
+            let a = bootinfo.memory_info.memory_map[i].length;
+            early_log!(&mut bootinfo, "\t\tLength: {}KB", a / 1024);
+        }
+        i += 1;
+    }
 
     loop {}
 }
