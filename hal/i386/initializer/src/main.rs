@@ -43,51 +43,33 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
     let mut archbootinfo: ArchBootInfo = ArchBootInfo::default();
     initbootinfo::initialize(&mut bootinfo, &mut archbootinfo, multiboot2_info_address);
 
-
+    let bootinfo_clone = bootinfo.clone();
     // log values to console to check them
     early_log!(&mut bootinfo, "Multiboot 2 Info:");
     early_log!(&mut bootinfo, "\tMagic Number: 0x{:x}", magic);
     early_log!(&mut bootinfo, "\tBoot Information struct Address: 0x{:x}\n", multiboot2_info_address);
 
     early_log!(&mut bootinfo, "Framebuffer Info:");
-    let a = bootinfo.framebuffer.enabled;
-    early_log!(&mut bootinfo, "\tEnabled: {}", a);
-    let a = bootinfo.framebuffer.addr;
-    early_log!(&mut bootinfo, "\tAddress: 0x{:x}", a);
-    let (a, b) = (bootinfo.framebuffer.width, bootinfo.framebuffer.height);
-    early_log!(&mut bootinfo, "\tResolution: {}x{}", a, b);
-    let a = bootinfo.framebuffer.pitch;
-    early_log!(&mut bootinfo, "\tPitch: {} bytes", a);
-    let a = bootinfo.framebuffer.depth * 8;
-    early_log!(&mut bootinfo, "\tDepth: {} bits", a);
-    let a = bootinfo.framebuffer.size;
-    early_log!(&mut bootinfo, "\tSize: {} bytes\n", a);
+    early_log!(&mut bootinfo, "\tEnabled: {}", bootinfo_clone.framebuffer.enabled);
+    early_log!(&mut bootinfo, "\tAddress: 0x{:x}", bootinfo_clone.framebuffer.addr);
+    early_log!(&mut bootinfo, "\tResolution: {}x{}", bootinfo_clone.framebuffer.width, bootinfo_clone.framebuffer.height);
+    early_log!(&mut bootinfo, "\tPitch: {} bytes", bootinfo_clone.framebuffer.pitch);
+    early_log!(&mut bootinfo, "\tDepth: {} bits", bootinfo_clone.framebuffer.depth * 8);
+    early_log!(&mut bootinfo, "\tSize: {} bytes\n", bootinfo_clone.framebuffer.size);
 
     early_log!(&mut bootinfo, "Console Info:");
-    let a = bootinfo.console.max_chars;
-    early_log!(&mut bootinfo, "\tMax chars: {}", a);
-    let a = bootinfo.console.max_line;
-    early_log!(&mut bootinfo, "\tMax lines: {}", a);
-    let a = bootinfo.console.cursor_pos;
-    early_log!(&mut bootinfo, "\tCursor position: {}", a);
-    let a = bootinfo.console.line;
-    early_log!(&mut bootinfo, "\tCursor line: {}", a);
-    let a = bootinfo.early_log_buffer.size;
-    early_log!(&mut bootinfo, "\tLog buffer size: {}\n", a);
+    early_log!(&mut bootinfo, "\tMax chars: {}", bootinfo_clone.console.max_chars);
+    early_log!(&mut bootinfo, "\tMax lines: {}", bootinfo_clone.console.max_line);
+    early_log!(&mut bootinfo, "\tLog buffer size: {}\n", bootinfo_clone.early_log_buffer.size);
 
     early_log!(&mut bootinfo, "Serial Port Info:");
-    let a = bootinfo.serial.enabled;
-    early_log!(&mut bootinfo, "\tEnabled: {}", a);
-    let a = bootinfo.serial.port;
-    early_log!(&mut bootinfo, "\tUsing Port: 0x{:x}\n", a);
+    early_log!(&mut bootinfo, "\tEnabled: {}", bootinfo_clone.serial.enabled);
+    early_log!(&mut bootinfo, "\tUsing Port: 0x{:x}\n", bootinfo_clone.serial.port);
 
     early_log!(&mut bootinfo, "Memory Info:");
-    let a = bootinfo.memory_info.total_physical_memory;
-    early_log!(&mut bootinfo, "\tPhysical memory: {}KB", a / 1024);
-    let a = bootinfo.memory_info.available_memory;
-    early_log!(&mut bootinfo, "\tAvailable memory: {}KB", a / 1024);
-    let a = bootinfo.memory_info.memory_map_entries;
-    early_log!(&mut bootinfo, "\tMemory map entries: {}", a);
+    early_log!(&mut bootinfo, "\tPhysical memory: {}KB", bootinfo_clone.memory_info.total_physical_memory / 1024);
+    early_log!(&mut bootinfo, "\tAvailable memory: {}KB", bootinfo_clone.memory_info.available_memory / 1024);
+    early_log!(&mut bootinfo, "\tMemory map entries: {}", bootinfo_clone.memory_info.memory_map_entries);
 
     
     // Print available entries first
