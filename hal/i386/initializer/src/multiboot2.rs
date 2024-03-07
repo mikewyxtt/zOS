@@ -17,6 +17,12 @@
  *  along with GRUB. If not, see <http://www.gnu.org/licenses/>.
  */
 
+
+ /* More information regarding the Multiboot2 standard can be found here:
+  * https://www.gnu.org/software/grub/manual/multiboot2/multiboot.html
+  */
+
+
 #![allow(dead_code)]
 
 use core::ffi::c_char;
