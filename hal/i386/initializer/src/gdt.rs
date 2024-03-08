@@ -20,7 +20,7 @@
 use chimera::hal::boot::bootinfo::i686::ArchBootInfo;
 use chimera::hal::boot::bootinfo::i686::GDTPointer;
 
-
+/// Assembly subroutine. Loads the GDT into gdtr and sets the segment registers
 extern "C" { fn _load_gdt(gdt_pointer: &GDTPointer, code_segment_selector: u16, data_segment_selector: u16); }
 
 
