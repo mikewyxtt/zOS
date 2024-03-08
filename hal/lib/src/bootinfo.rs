@@ -169,35 +169,49 @@
 
 
 
-    /*
-    *
-    * i686 BootInfo table
-    *
-    */
+/*
+*
+* i686 BootInfo table
+*
+*/
 pub mod i686 {
     #[derive(Default)]
     #[repr(C)]
     pub struct ArchBootInfo {
-        pub x: i32,
-    }
-
-    pub struct GlobalDescriptorTable {
-        entries: [GdtEntry; 5],
+        pub global_descriptor_table: GlobalDescriptorTable,
+        pub gdt_pointer: GDTPointer,
     }
 
     #[repr(C, packed)]
-    pub struct GdtEntry {
-        limit_low: u16,
-        base_low: u16,
-        base_middle: u8,
-        access: u8,
-        granularity: u8,
-        base_high: u8,
+    pub struct GlobalDescriptorTable {
+        pub null:       GDTEntry,
+        pub sys_code:   GDTEntry,
+        pub sys_data:   GDTEntry,
+        pub user_code:  GDTEntry,
+        pub user_data:  GDTEntry,
     }
 
-    impl GdtEntry {
+    #[repr(C, packed)]
+    pub struct GDTEntry {
+        limit_low:      u16,
+        base_low:       u16,
+        base_middle:    u8,
+        access:         u8,
+        granularity:    u8,
+        base_high:      u8,
+    }
+
+    /// Pointer to the Global Descriptor table
+    #[derive(Default)]
+    #[repr(C, packed)]
+    pub struct GDTPointer {
+        pub limit:  u16,
+        pub base:   usize,
+    }
+
+    impl GDTEntry {
         pub fn new(base: u32, limit: u32, access: u8, granularity: u8) -> Self {
-            let mut entry = GdtEntry {
+            let mut entry = GDTEntry {
                 limit_low: (limit & 0xFFFF) as u16,
                 base_low: (base & 0xFFFF) as u16,
                 base_middle: ((base >> 16) & 0xFF) as u8,
@@ -213,18 +227,15 @@ pub mod i686 {
         }
     }
 
-    impl GlobalDescriptorTable {
-        pub fn new() -> Self {
+    impl Default for GlobalDescriptorTable {
+        fn default() -> Self {
             Self {
-                entries: [
-                    GdtEntry::new(0, 0, 0, 0),                  // Placeholder for null descriptor
-                    GdtEntry::new(0, 0xffffffff, 0x9A, 0xCF),   // Code segment descriptor (supervisor)
-                    GdtEntry::new(0, 0xffffffff, 0x92, 0xCF),   // Data segment descriptor (supervisor)
-                    GdtEntry::new(0, 0, 0x9A, 0xCF),            // Placeholder for user mode code segment descriptor
-                    GdtEntry::new(0, 0, 0x92, 0xCF),            // Placeholder for user mode data segment descriptor
-                ],
+                null:       GDTEntry::new(0, 0, 0, 0),                  // null segment descriptor
+                sys_code:   GDTEntry::new(0, 0xffffffff, 0x9A, 0xCF),   // Code segment descriptor (supervisor)
+                sys_data:   GDTEntry::new(0, 0xffffffff, 0x92, 0xCF),   // Data segment descriptor (supervisor)
+                user_code:  GDTEntry::new(0, 0, 0x9A, 0xCF),            // Placeholder for user mode code segment descriptor
+                user_data:  GDTEntry::new(0, 0, 0x92, 0xCF),            // Placeholder for user mode data segment descriptor
             }
         }
     }
-
 }
