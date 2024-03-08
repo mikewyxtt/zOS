@@ -1,13 +1,22 @@
 use std::process::Command;
-use std::env;
 use std::path::PathBuf;
+use std::env;
 
 fn main() {
     // Set the name to be displayed when logging
     println!("cargo:rustc-env=LOG_DISPLAY_NAME=initializer");
     
+    // Build assembly source
+    assemble("src/start.S", "start.o");
+    assemble("src/load_gdt.S", "load_gdt.o");
 
-    // Retrieve the target directory where the object file will be placed
+    // Use our linker script
+    println!("cargo:rustc-link-arg=-Tlink.ld");
+}
+
+/// Uses clang to assemble .S src into an object file
+fn assemble(src_path: &str, output_path: &str) {
+    // Find the 'target' directory then create a full path to the output file so we can output our .o file
     let target_dir = match env::var("OUT_DIR") {
         Ok(dir) => dir,
         Err(e) => {
@@ -16,56 +25,22 @@ fn main() {
         }
     };
 
-    // Convert target_dir to a String
     let target_dir = PathBuf::from(target_dir);
+    let output_path = target_dir.join(output_path);
 
-    let src_path = "src/start.S";
-
-    // Construct the path to the target object file
-    let start_o_path = target_dir.join("start.o");
-
-    // Run NASM to assemble start.asm into start.o
+    // Run clang to assemble source into an object file
     let clang_output = Command::new("clang")
         .args(&["-ffreestanding", "-c", "-target", "i686-unknown-none", src_path, "-o"])
-        .arg(&start_o_path) //
+        .arg(&output_path) //
         .output()
         .expect("Failed to run clang");
 
-    // Check if NASM produced any error output
+    // Check if clang produced any error output
     if !clang_output.stderr.is_empty() {
-        // Print NASM's error output
         eprintln!("clang (assembler) error:\n{}", String::from_utf8_lossy(&clang_output.stderr));
-        // Terminate the build process
         std::process::exit(1);
     }
 
-    // build _load_gdt.S
-
-    // Path to the GAS source file
-    let src_path = "src/load_gdt.S";
-
-    // Construct the path to the target object file
-    let load_gdt_o_path = target_dir.join("load_gdt.o");
-
-    // Run NASM to assemble start.asm into start.o
-    let clang_output = Command::new("clang")
-        .args(&["-ffreestanding", "-c", "-target", "i686-unknown-none", src_path, "-o"])
-        .arg(&load_gdt_o_path) //
-        .output()
-        .expect("Failed to run clang");
-
-    // Check if NASM produced any error output
-    if !clang_output.stderr.is_empty() {
-        // Print NASM's error output
-        eprintln!("clang (assembler) error:\n{}", String::from_utf8_lossy(&clang_output.stderr));
-        // Terminate the build process
-        std::process::exit(1);
-    }
-
-    // Link start.o
-    println!("cargo:rustc-link-arg={}", start_o_path.display());
-    // Link load_gdt.o
-    println!("cargo:rustc-link-arg={}", load_gdt_o_path.display());
-    // Use our linker script
-    println!("cargo:rustc-link-arg=-Tlink.ld");
+    // Link the output file
+    println!("cargo:rustc-link-arg={}", output_path.display());
 }
