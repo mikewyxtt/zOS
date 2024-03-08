@@ -24,6 +24,7 @@
 
 mod multiboot2;
 mod initbootinfo;
+mod gdt;
 
 use core::panic::PanicInfo;
 use chimera::hal::boot::bootinfo::BootInfo;
@@ -94,6 +95,9 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
         }
         i += 1;
     }
+
+    // Replace the GDT that the bootloader gave us with ours
+    gdt::setup_gdt(&mut archbootinfo);
 
     loop {}
 }
