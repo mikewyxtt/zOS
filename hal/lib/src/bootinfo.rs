@@ -191,6 +191,16 @@ pub mod i686 {
         pub user_data:  GDTEntry,
     }
 
+    impl GlobalDescriptorTable {
+        pub fn get_selector_offset(&self, selector: &GDTEntry) -> u16 {
+            // Calculate the offset of the given selector within the struct
+            let base_ptr = self as *const GlobalDescriptorTable as usize;
+            let selector_ptr = selector as *const GDTEntry as usize;
+            (selector_ptr - base_ptr) as u16
+        }
+    }
+    
+
     #[repr(C, packed)]
     pub struct GDTEntry {
         limit_low:      u16,
@@ -207,6 +217,15 @@ pub mod i686 {
     pub struct GDTPointer {
         pub limit:  u16,
         pub base:   usize,
+    }
+
+    impl GDTPointer {
+        pub fn new(base: usize) -> Self {
+            GDTPointer {
+                limit: (core::mem::size_of::<GlobalDescriptorTable>() as u16) - 1,
+                base: base,
+            }
+        }
     }
 
     impl GDTEntry {

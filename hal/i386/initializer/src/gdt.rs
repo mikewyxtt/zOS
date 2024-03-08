@@ -18,24 +18,19 @@
  */
 
 use chimera::hal::boot::bootinfo::i686::ArchBootInfo;
-use chimera::hal::boot::bootinfo::i686::{GlobalDescriptorTable, GDTPointer};
+use chimera::hal::boot::bootinfo::i686::GDTPointer;
 
 extern "C" { fn _load_gdt(gdt_pointer: &GDTPointer, code_segment_selector: u16, data_segment_selector: u16); }
 
 
 /// Sets up and loads our GDT
 pub fn setup_gdt(archbootinfo: &mut ArchBootInfo) {
-
-    // Find the segment selectors. These values are offsets (in bytes) to the start of each entry. Null selector is 0, sys_code is 0x8, sys_data is 0x10, etc.
-    let code_segment_selector = core::ptr::addr_of!(archbootinfo.global_descriptor_table.sys_code) as usize - core::ptr::addr_of!(archbootinfo.global_descriptor_table) as usize;
-    let data_segment_selector = core::ptr::addr_of!(archbootinfo.global_descriptor_table.sys_data) as usize - core::ptr::addr_of!(archbootinfo.global_descriptor_table) as usize;
     
     // Create the GDT pointer
-    archbootinfo.gdt_pointer = GDTPointer {
-        limit: ((core::ptr::addr_of!(archbootinfo.global_descriptor_table) as usize - core::mem::size_of::<GlobalDescriptorTable>() as usize) as u16) - 1,
-        base: core::ptr::addr_of!(archbootinfo.global_descriptor_table) as usize,
-    };
+    archbootinfo.gdt_pointer = GDTPointer::new(core::ptr::addr_of!(archbootinfo.global_descriptor_table) as usize);
 
-    // Load the GDT in
-    unsafe { _load_gdt(&archbootinfo.gdt_pointer, code_segment_selector as u16, data_segment_selector as u16); }
+    
+    // Load the GDT
+    let gdt = &archbootinfo.global_descriptor_table;
+    unsafe { _load_gdt(&archbootinfo.gdt_pointer, gdt.get_selector_offset(&gdt.sys_code), gdt.get_selector_offset(&gdt.sys_data)); }
 }
