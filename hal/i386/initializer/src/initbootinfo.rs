@@ -42,7 +42,6 @@ pub fn initialize(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBootInfo, mult
 
 
 pub fn parse_multiboot_header(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBootInfo, multiboot2_info_address: usize) {
-    archbootinfo.x = 0;
     
     // pointer to first multiboot tag entry
     let mut tag: *const MultibootTag = (multiboot2_info_address + 8) as *const _;
