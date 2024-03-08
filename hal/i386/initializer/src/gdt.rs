@@ -20,6 +20,7 @@
 use chimera::hal::boot::bootinfo::i686::ArchBootInfo;
 use chimera::hal::boot::bootinfo::i686::GDTPointer;
 
+
 extern "C" { fn _load_gdt(gdt_pointer: &GDTPointer, code_segment_selector: u16, data_segment_selector: u16); }
 
 
@@ -28,9 +29,8 @@ pub fn setup_gdt(archbootinfo: &mut ArchBootInfo) {
     
     // Create the GDT pointer
     archbootinfo.gdt_pointer = GDTPointer::new(core::ptr::addr_of!(archbootinfo.global_descriptor_table) as usize);
-
     
     // Load the GDT
     let gdt = &archbootinfo.global_descriptor_table;
-    unsafe { _load_gdt(&archbootinfo.gdt_pointer, gdt.get_selector_offset(&gdt.sys_code), gdt.get_selector_offset(&gdt.sys_data)); }
+    unsafe { _load_gdt(&archbootinfo.gdt_pointer, gdt.sys_code.get_offset(&gdt), gdt.sys_data.get_offset(&gdt)); }
 }
