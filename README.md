@@ -6,6 +6,10 @@ Notable design choices:
 	- Hardware Abstraction Layer to ensure easy portability
 
 
+# rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
 # rustup component add rust-sr
 
 # rustup override set nightly
+
+Required tools:
+clang, grub, rust
