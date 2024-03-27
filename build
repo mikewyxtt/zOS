@@ -17,7 +17,7 @@ livecd() {
 	rm -Rf syspack
 
 	cp misc/grub.cfg iso/boot/grub/
-	grub-mkrescue -o RELEASE/chimera.iso iso
+	grub2-mkrescue -o RELEASE/chimera.iso iso
 	rm -Rf iso
 }
 
