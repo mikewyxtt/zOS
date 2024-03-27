@@ -16,8 +16,8 @@ livecd() {
 	tar -czf iso/boot/chimera.gz -C syspack .
 	rm -Rf syspack
 
-	cp hal/boot/grub-2.12/grub.cfg iso/boot/grub/
-	iso/bin/grub-mkrescue -o RELEASE/chimera.iso iso
+	cp misc/grub.cfg iso/boot/grub/
+	grub-mkrescue -o RELEASE/chimera.iso iso
 	rm -Rf iso
 }
 
@@ -27,7 +27,7 @@ all() {
 }
 
 clean() {
-	echo "No cleaning routines available"
+	sh hal/i386/initializer/pkgbuild.sh clean
 }
 
 release() {
