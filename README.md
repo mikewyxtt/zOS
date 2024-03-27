@@ -6,10 +6,13 @@ Notable design choices:
 	- Hardware Abstraction Layer to ensure easy portability
 
 
-# rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
-# rustup component add rust-sr
+# Setting up Rust
+```sh
+rustup component add rust-src
+```
 
-# rustup override set nightly
+# Required packages to build:
+clang, rust
 
-Required tools:
-clang, grub, rust
+# Required packages to create iso
+grub2, xorriso, mtools
