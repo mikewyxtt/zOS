@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 PKGNAME="initializer"
 VERSION="0.0.0"
 
