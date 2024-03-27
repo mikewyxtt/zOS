@@ -8,7 +8,6 @@ livecd() {
 	rm -Rf RELEASE
 	mkdir -p iso/boot/grub RELEASE
 
-	sh hal/boot/grub-2.12/pkgbuild.sh install
 	sh hal/i386/initializer/pkgbuild.sh install
 	
 	# random archive to satisfy grub until we have kernel and servers setup...
@@ -24,12 +23,11 @@ livecd() {
 
 all() {
 	echo "Building all..."
-	sh hal/boot/grub-2.12/pkgbuild.sh build
 	sh hal/i386/initializer/pkgbuild.sh build
 }
 
 clean() {
-	sh hal/boot/grub-2.12/pkgbuild.sh clean
+	echo "No cleaning routines available"
 }
 
 release() {
