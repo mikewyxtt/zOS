@@ -2,13 +2,13 @@
 #![no_main]
 
 
-struct SystemTable {
-    _abc: u32,
-    //
+struct EFISystemTable {
+    // EFISystemTable stuff goes here
 }
 
 #[no_mangle]
-extern "win64" fn efi_main(_efi_handle: &usize, _system_table: &'static SystemTable) -> ! {
+extern "win64" fn efi_main(_efi_handle: &usize, _system_table: &'static EFISystemTable) -> ! {
+    unsafe { core::arch::asm!("mov eax, 0xFACE"); }
     loop {}
 }
 
@@ -17,8 +17,6 @@ extern "win64" fn efi_main(_efi_handle: &usize, _system_table: &'static SystemTa
 use core::panic::PanicInfo;
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    // use debugtools::*;
-    // serial_log!("{}", _info);
-    // unsafe { chimera::debug::debugtools::set_eax(0xBadDeed); }
+    unsafe { core::arch::asm!("mov eax, 0xBadDeed"); }
     loop {}
 }
