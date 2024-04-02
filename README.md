@@ -9,6 +9,9 @@ Notable design choices:
 # Setting up Rust
 ```sh
 rustup component add rust-src
+rustup target add x86_64-unknown-uefi
+
+
 ```
 
 # Required packages to build:
