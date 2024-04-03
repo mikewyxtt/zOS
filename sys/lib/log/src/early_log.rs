@@ -27,7 +27,7 @@ const FONT_HEIGHT: u32 = 16;
 const TAB_WIDTH: u32 = 4;
 
 /* just keep a txt buffer and refresh the screen after each write. this way messages before the fb are up arent lost, and it will prob look better */
-
+// I dont think we need the buffer in the writer struct....
 
 /// Prints a formatted string with NO trailing newline to console output.
 #[macro_export]
