@@ -1,119 +1,179 @@
+#![allow(dead_code)]
+
 use core::ffi::c_void;
 
-/*
-EFI Data types:
-EFI_GUID: 128 bit buffer
-EFI_STATUS: usize
-EFI_HANDLE: void*
-EFI_EVENT: void*
-EFI_LBA: u64
-EFI_TPL: usize
-EFI_MAC_ADDRESS: 32 byte buffer
-EFI_IPv4_ADDRESS: 4 byte buffer
-EFI_IPv6_ADDRESS: 16 byte buffer
-EFI_IP_ADDRESS: 16 byte buffer
-*/
+const DISK_IO_PROTOCOL_GUID: GUID = GUID::new(0xCE345171, 0xBA0B, 0x11d2, [0x8e, 0x4F, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b]);
 
+// Pointer to the EFI System Table
 static mut SYSTEM_TABLE: *const SystemTable = core::ptr::null();
 
-#[allow(dead_code)]
+
 #[repr(C)]
-pub struct EFITableHeader {
+pub struct TableHeader {
     pub signature:      u64,
     pub revision:       u32,
     pub header_size:    u32,
     pub crc32:          u32,
-    pub reserved:       u32
+    reserved:           u32
 }
 
-#[allow(dead_code)]
+
+#[repr(C)]
+pub struct GUID {
+    data1: u32,
+    data2: u16,
+    data3: u16,
+    data4: [u8; 8]
+}
+
+
+impl GUID {
+    pub const fn new(data1: u32, data2: u16, data3: u16, data4: [u8; 8]) -> Self {
+        GUID {
+            data1,
+            data2,
+            data3,
+            data4
+        }
+    }
+}
+
+
 #[repr(C)]
 pub struct SystemTable {
-    pub header:                     EFITableHeader,
-    pub firmware_vendor:            *const u16,
-    pub firmware_revision:          u32,
-    pub console_in_handle:          *const c_void,
-    pub console_in:                 *const c_void,
-    pub console_out_handle:         *const c_void,
-    pub console_out:                *const SimpleTextOutputProtocol,
-    pub standard_error_handle:      *const c_void,
-    pub std_error:                  *const c_void,
-    pub runtime_services:           *const c_void,
-    pub boot_services:              *const EFIBootServices,
-    pub number_of_table_entries:    usize,
-    pub configuration_table:        *const c_void
+    pub header:                                     TableHeader,
+    pub firmware_vendor:                            *const u16,
+    pub firmware_revision:                          u32,
+    pub console_in_handle:                          *const c_void,
+    pub simple_text_input_protocol:                 *const c_void,
+    pub console_out_handle:                         *const c_void,
+    pub simple_text_output_protocol:                *const SimpleTextOutputProtocol,
+    pub standard_error_handle:                      *const c_void,
+    pub std_error:                                  *const c_void,
+    pub runtime_services:                           *const c_void,
+    pub boot_services:                              *const BootServices,
+    pub number_of_table_entries:                    usize,
+    pub configuration_table:                        *const c_void
 }
 
-#[allow(dead_code)]
+
 #[repr(C)]
-pub struct EFIBootServices {
-    pub header:                                     EFITableHeader,
-    pub raise_tpl:                                  *const c_void,
-    pub restore_tpl:                                *const c_void,
-    pub allocate_pages:                             *const c_void,
-    pub free_pages:                                 *const c_void,
-    pub get_memory_map:                             *const c_void,
-    pub allocate_pool:                              *const c_void,
-    pub free_pool:                                  *const c_void,
-    pub create_event:                               *const c_void,
-    pub set_timer:                                  *const c_void,
-    pub wait_for_event:                             *const c_void,
-    pub signal_event:                               *const c_void,
-    pub close_event:                                *const c_void,
-    pub check_event:                                *const c_void,
-    pub install_protocol_interface:                 *const c_void,
-    pub reinstall_protocol_interface:               *const c_void,
-    pub uninstall_protocol_interface:               *const c_void,
-    pub handle_protocol:                            *const c_void,
-    pub reserved:                                   *const c_void,
-    pub register_protocol_notify:                   *const c_void,
-    pub locate_handle:                              *const c_void,
-    pub locate_device_path:                         *const c_void,
-    pub install_configuration_table:                *const c_void,
-    pub load_image:                                 *const c_void,
-    pub start_image:                                *const c_void,
-    pub exit:                                       *const c_void,
-    pub unload_image:                               *const c_void,
-    pub exit_boot_services:                         *const c_void,
-    pub get_next_monotonic_count:                   *const c_void,
-    pub stall:                                      *const c_void,
-    pub set_watchdog_timer:                         *const c_void,
-    pub connect_controller:                         *const c_void,
-    pub disconnect_controller:                      *const c_void,
-    pub open_protocol:                              *const c_void,
-    pub close_protocol:                             *const c_void,
-    pub open_protocol_information:                  *const c_void,
-    pub protocols_per_handle:                       *const c_void,
-    pub locate_handle_buffer:                       *const c_void,
-    pub locate_protocol:                            *const c_void,
-    pub install_multiple_protocol_interfaces:       *const c_void,
-    pub uninstall_multiple_protocol_interfaces:     *const c_void,
-    pub calculate_crc32:                            *const c_void,
-    pub copy_mem:                                   *const c_void,
-    pub set_mem:                                    *const c_void,
-    pub create_event_ex:                            *const c_void
+pub struct BootServices {
+    pub header:                                     TableHeader,
+    _raise_tpl:                                     *const c_void,
+    _restore_tpl:                                   *const c_void,
+    _allocate_pages:                                *const c_void,
+    _free_pages:                                    *const c_void,
+    _get_memory_map:                                *const c_void,
+    _allocate_pool:                                 *const c_void,
+    _free_pool:                                     *const c_void,
+    _create_event:                                  *const c_void,
+    _set_timer:                                     *const c_void,
+    _wait_for_event:                                *const c_void,
+    _signal_event:                                  *const c_void,
+    _close_event:                                   *const c_void,
+    _check_event:                                   *const c_void,
+    _install_protocol_interface:                    *const c_void,
+    _reinstall_protocol_interface:                  *const c_void,
+    _uninstall_protocol_interface:                  *const c_void,
+    _handle_protocol:                               *const c_void,
+    _reserved:                                      *const c_void,
+    _register_protocol_notify:                      *const c_void,
+    _locate_handle:                                 *const c_void,
+    _locate_device_path:                            *const c_void,
+    _install_configuration_table:                   *const c_void,
+    _load_image:                                    *const c_void,
+    _start_image:                                   *const c_void,
+    _exit:                                          *const c_void,
+    _unload_image:                                  *const c_void,
+    _exit_boot_services:                            *const c_void,
+    _get_next_monotonic_count:                      *const c_void,
+    _stall:                                         *const c_void,
+    _set_watchdog_timer:                            *const c_void,
+    _connect_controller:                            *const c_void,
+    _disconnect_controller:                         *const c_void,
+    _open_protocol:                                 *const c_void,
+    _close_protocol:                                *const c_void,
+    _open_protocol_information:                     *const c_void,
+    _protocols_per_handle:                          *const c_void,
+    _locate_handle_buffer:                          *const c_void,
+    _locate_protocol:                               unsafe extern "efiapi" fn (GUID, *const c_void) -> *const c_void,
+    _install_multiple_protocol_interfaces:          *const c_void,
+    _uninstall_multiple_protocol_interfaces:        *const c_void,
+    _calculate_crc32:                               *const c_void,
+    _copy_mem:                                      *const c_void,
+    _set_mem:                                       *const c_void,
+    _create_event_ex:                               *const c_void
 }
 
-#[allow(dead_code)]
+
+impl BootServices {
+    /// Returns a reference to BootServices
+    fn get() -> &'static Self {
+        unsafe { &*(*(SYSTEM_TABLE)).boot_services }
+    }
+
+    /// Returns a pointer to the requested protocol
+    pub fn locate_protocol(protocol: GUID, registration: *const c_void) -> *const c_void {
+        unsafe { (Self::get()._locate_protocol)(protocol, registration) }
+    }
+}
+
+
 #[repr(C)]
 pub struct SimpleTextOutputProtocol {
-    pub reset:                  unsafe extern "efiapi" fn(*const SimpleTextOutputProtocol, bool),
-    pub output_string:          unsafe extern "efiapi" fn(*const SimpleTextOutputProtocol, *const u16),
-    pub test_string:            *const c_void,
-    pub query_mode:             *const c_void,
-    pub set_mode:               *const c_void,
-    pub set_attribute:          *const c_void,
-    pub clear_screen:           unsafe extern "efiapi" fn(*const SimpleTextOutputProtocol),
-    pub set_cursor_position:    *const c_void,
-    pub enable_cursor:          *const c_void,
-    pub mode:                   *const c_void
+    pub _reset:                 unsafe extern "efiapi" fn (*const Self, bool),
+    _output_string:             unsafe extern "efiapi" fn (*const Self, *const u16),
+    _test_string:               *const c_void,
+    _query_mode:                *const c_void,
+    _set_mode:                  *const c_void,
+    _set_attribute:             *const c_void,
+    _clear_screen:              *const c_void,
+    _set_cursor_position:       *const c_void,
+    _enable_cursor:             *const c_void,
+    _mode:                      *const c_void
+}
+
+
+impl SimpleTextOutputProtocol {
+    /// Returns a reference to SimpleTextOutputProtocol
+    fn get() -> &'static Self {
+        unsafe { &*(*(SYSTEM_TABLE)).simple_text_output_protocol }
+    }
+
+    /// Resets the console
+    pub fn reset() {
+        unsafe { (Self::get()._reset)(Self::get(), false) };
+    }
+
+    /// Outputs a UTF-16 string to the UEFI console
+    pub fn output_string(string: *const u16) {
+        unsafe { (Self::get()._output_string)(Self::get(), string) };
+    }
+}
+
+
+#[repr(C)]
+pub struct DiskIOProtocol {
+    pub revision:       u64,
+    _read_disk:         unsafe extern "efiapi" fn (*const Self, u32, u64, usize) -> *const c_void,
+    _write_disk:        *const c_void
+}
+
+
+impl DiskIOProtocol {
+    /// Returns a reference to DiskIOProtocol
+    fn get() -> &'static Self {
+        unsafe { &*(BootServices::locate_protocol(DISK_IO_PROTOCOL_GUID, core::ptr::null()) as *const Self) as &Self}
+    }
+
+    /// Reads from the disk
+    pub fn read_disk(media_id: u32, offset: u64, buffer_size: usize) -> *const c_void {
+        unsafe { (Self::get()._read_disk)(Self::get(), media_id, offset, buffer_size) }
+    }
 }
 
 
 pub fn initialize(system_table: *const SystemTable) {
     unsafe { SYSTEM_TABLE = system_table };
-}
-
-pub fn get_system_table() -> &'static SystemTable {
-    unsafe { &*(SYSTEM_TABLE) }
 }
