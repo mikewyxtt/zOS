@@ -173,7 +173,7 @@ impl DiskIOProtocol {
     }
 }
 
-
+/// Initializes the pointer to the system table
 pub fn initialize(system_table: *const SystemTable) {
     unsafe { SYSTEM_TABLE = system_table };
 }
