@@ -18,4 +18,6 @@ rustup target add x86_64-unknown-uefi
 clang, rust
 
 # Required packages to create iso
-grub2, xorriso, mtools
+xorriso, mtools, fdisk
+
+mkdosfs, mkfs.ext2
