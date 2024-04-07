@@ -27,6 +27,7 @@ impl GUID {
     }
 }
 
+
 #[repr(C)]
 pub struct TableHeader {
     pub signature:      u64,
@@ -35,6 +36,7 @@ pub struct TableHeader {
     pub crc32:          u32,
     reserved:           u32
 }
+
 
 #[repr(C)]
 pub struct SystemTable {
@@ -73,10 +75,10 @@ pub struct BootServices {
     _install_protocol_interface:                    *const c_void,
     _reinstall_protocol_interface:                  *const c_void,
     _uninstall_protocol_interface:                  *const c_void,
-    _handle_protocol:                               unsafe extern "efiapi" fn (*const c_void, *const GUID, *const *const c_void) -> u32,
+    _handle_protocol:                               unsafe extern "efiapi" fn (*const c_void, &GUID, *const *const c_void) -> u32,
     _reserved:                                      *const c_void,
     _register_protocol_notify:                      *const c_void,
-    _locate_handle:                                 unsafe extern "efiapi" fn (LocateSearchType, GUID, *const c_void, *const usize, *const usize) -> u32,
+    _locate_handle:                                 unsafe extern "efiapi" fn (LocateSearchType, &GUID, *const c_void, *const usize, *mut usize) -> u32,
     _locate_device_path:                            *const c_void,
     _install_configuration_table:                   *const c_void,
     _load_image:                                    *const c_void,
@@ -89,8 +91,8 @@ pub struct BootServices {
     _set_watchdog_timer:                            *const c_void,
     _connect_controller:                            *const c_void,
     _disconnect_controller:                         *const c_void,
-    _open_protocol:                                 unsafe extern "efiapi" fn (*const c_void, *const GUID, *const *const c_void, *const c_void, *const c_void, u32) -> u32,
-    _close_protocol:                                unsafe extern "efiapi" fn (*const c_void, *const GUID, *const c_void, *const c_void) -> u32,
+    _open_protocol:                                 unsafe extern "efiapi" fn (*const c_void, &GUID, *const *const c_void, *const c_void, *const c_void, u32) -> u32,
+    _close_protocol:                                unsafe extern "efiapi" fn (*const c_void, &GUID, *const c_void, *const c_void) -> u32,
     _open_protocol_information:                     *const c_void,
     _protocols_per_handle:                          *const c_void,
     _locate_handle_buffer:                          *const c_void,
@@ -122,22 +124,22 @@ pub enum LocateSearchType {
 }
 
 impl BootServices {
-    pub fn locate_handle(search_type: LocateSearchType, protocol: GUID, search_key: *const c_void, buffer_size: *const usize, buffer: *const usize) -> u32{
+    pub fn locate_handle(search_type: LocateSearchType, protocol: &GUID, search_key: *const c_void, buffer_size: &mut usize, buffer: *mut usize) -> u32{
         unsafe { (Self::get()._locate_handle)(search_type, protocol, search_key, buffer_size, buffer) }
     }
 
     /// Returns a protocol interface
-    pub fn handle_protocol(handle: *const usize, guid: *const GUID, interface: *const *const usize) -> u32 {
+    pub fn handle_protocol(handle: *const usize, guid: &GUID, interface: *mut *mut usize) -> u32 {
         unsafe { (Self::get()._handle_protocol)(handle as *const c_void, guid, interface as *const *const c_void) }
     }
 
     /// Opens aprotocol
-    pub fn open_protocol(handle: *const usize, protocol: *const GUID) -> u32 {
+    pub fn open_protocol(handle: *const usize, protocol: &GUID) -> u32 {
         unsafe { (Self::get()._open_protocol)(handle as *const c_void, protocol, ptr::null(), IMAGE_HANDLE, ptr::null(), 0x00000004) }
     }
 
     /// Closes a protocol
-    pub fn close_protocol(handle: *const usize, protocol: *const GUID) -> u32 {
+    pub fn close_protocol(handle: *const usize, protocol: &GUID) -> u32 {
         unsafe { (Self::get()._close_protocol)(handle as *const c_void, protocol, IMAGE_HANDLE, ptr::null()) }
     }
 }
@@ -290,6 +292,7 @@ pub struct BlockIOMedia {
 /// Initializes the pointer to the system table
 pub fn initialize(image_handle: *const usize, system_table: *const SystemTable) {
     unsafe { 
+        // TODO: add a check validating these pointers
         SYSTEM_TABLE = system_table;
         IMAGE_HANDLE = image_handle as *const c_void;
     }
