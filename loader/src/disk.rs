@@ -1,6 +1,6 @@
 // disk.rs
 
-use crate::uefi;
+use crate::uefi::{self, DevicePathProtocol};
 use uefi::{LocateSearchType, BootServices, BlockIOProtocol};
 use core::ptr;
 use core::mem::size_of;
@@ -23,21 +23,32 @@ impl DiskEntry {
 }
 
 
+
 pub fn read_blocks() {
     let entries = probe_disks();
 
 
-    // for disk in entries {
-    //     let guid = BlockIOProtocol::guid();
-    //     let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::NonNull::<BlockIOProtocol>::dangling().as_ptr() as *mut *mut BlockIOProtocol;
-    //     uefi::BootServices::handle_protocol(disk.handle, &guid as *const GUID, block_io_protocol as *mut *mut usize);
-    //     let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
+    for disk in entries {
+        if disk.name.cmp(&String::from("/dev/disk0s1")).is_eq() {
+            let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::NonNull::<BlockIOProtocol>::dangling().as_ptr() as *mut *mut BlockIOProtocol;
+            uefi::BootServices::handle_protocol(disk.handle, &(BlockIOProtocol::guid()), block_io_protocol as *mut *mut usize);
+            let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
 
 
-    //     let buffer: Vec<u8> = vec![0; 1024];
-    //     block_io_protocol.read_blocks(0, 1024, buffer.as_ptr() as *const usize);
-    //     unsafe { hexdump_blocks!(1024, 8, 512, buffer.as_ptr()); }
-    // }
+            let buffer: Vec<u8> = vec![0; 512];
+            block_io_protocol.read_blocks(2, 1024, buffer.as_ptr() as *const usize);
+
+
+            let mut ptr = buffer.as_ptr() as usize;
+            ptr += 56;
+            let magic: u16 = unsafe { *(ptr as *const u16) as u16};
+            println!("EXT2 magic: 0x{:X}", magic);
+
+            // use debugutils::hexdump_blocks;
+            // unsafe { hexdump_blocks!(512, 8, 512, buffer.as_ptr()); }
+        }
+        
+    }
 }
 
 /// Searches for block devices and returns a Vector of DiskEntry structs
@@ -52,28 +63,39 @@ fn probe_disks() -> Vec<DiskEntry> {
     BootServices::locate_handle(LocateSearchType::ByProtocol, &(BlockIOProtocol::guid()), ptr::null(), &mut buffer_size, handles.as_ptr() as *mut usize);
 
     
-    // Iterate through the handles and add each disks to a vector
+    // Iterate through the handles, parse the device path and add each disks to a vector
     let mut entries: Vec<DiskEntry> = Vec::new();
 
-    for (index, entry) in handles.iter().enumerate() {
-        let entry = entry as *const usize;
+    let mut disk = 0;
 
-        let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::NonNull::<BlockIOProtocol>::dangling().as_ptr() as *mut *mut BlockIOProtocol;
-        BootServices::handle_protocol(handles[index] as *const usize, &(BlockIOProtocol::guid()), block_io_protocol as *mut *mut usize);
+    for i in 0..handles.len() {
+        // Get the device path protocol
+        let device_path: *mut *mut DevicePathProtocol = core::ptr::NonNull::<DevicePathProtocol>::dangling().as_ptr() as *mut *mut DevicePathProtocol;
+        BootServices::handle_protocol(handles[i] as *const usize, &(DevicePathProtocol::guid()), device_path as *mut *mut usize);
+        
+        let mut device_path: &DevicePathProtocol = unsafe { &mut (**device_path)};
 
-        let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
+        while device_path._type != 0x7F {
+            // are we on the last node?
+            let next = unsafe { device_path.next() };
+            
+            if next._type == 0x7F {
+                // Is this a SATA drive?
+                if device_path.subtype == 18 {
+                    let mut name = String::new();
+                    name.push_str(alloc::format!("/dev/disk{}", disk ).as_str());
+                    println!("Found block device: {} with handle: 0x{:02X}", name, handles[i]);
+                    entries.push(DiskEntry::new(name.as_str(), handles[i] as *const usize));
+                    disk += 1;
+                }
 
-        // Check if it's a hard disk
-        if unsafe { !(*block_io_protocol.media).logical_partition && (*block_io_protocol.media).media_present } {
-            let mut name = String::new();
-            name.push_str(alloc::format!("/dev/disk{}", index ).as_str());
-            println!("Found disk: {} with handle: 0x{:02X}", name, entry as usize);
-            entries.push(DiskEntry::new(name.as_str(), handles[index] as *const usize));
-        }
+                // is this a partition?
+                if device_path.subtype == 4 {
+                    //
+                }
+            }
 
-        // Check if it's removable storage
-        if unsafe { !(*block_io_protocol.media).logical_partition && (*block_io_protocol.media).removable_media && (*block_io_protocol.media).media_present } {
-            println!("Found removable disk: /dev/{} with handle: 0x{:02X}", "sdb1", entry as usize);
+            device_path = unsafe { device_path.next() };
         }
     }
 
