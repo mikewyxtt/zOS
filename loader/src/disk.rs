@@ -1,6 +1,7 @@
 // disk.rs
 
 use crate::uefi::{self, ACPIDevicePath, DevicePathProtocol};
+use alloc::slice;
 use uefi::{LocateSearchType, BootServices, BlockIOProtocol};
 use core::ptr;
 use core::mem::size_of;
@@ -9,18 +10,20 @@ use alloc::string::{String, ToString};
 
 struct EFIBlockDevice {
     name: String,
-    // number
     handle: *const usize,
+    is_slice: bool,
+    slice_number: u16,
    // hid:    usize,
 }
 
 impl EFIBlockDevice {
-    pub fn new(name: &str, handle: *const usize) -> Self {
+    pub fn new(name: &str, handle: *const usize, is_slice: bool, slice_number: u16) -> Self {
         let name = name.to_string();
         Self {
             name,
             handle,
-           // hid,
+            is_slice,
+            slice_number
         }
     }
 }
@@ -69,13 +72,11 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
     
     // Iterate through the handles, parse the device path and add each disks to a vector
     let mut entries: Vec<EFIBlockDevice> = Vec::new();
-
-    let mut disk = 0;
-    let mut slice = 1;
     let mut hid = 0;
 
+
     for i in 0..handles.len() {
-        // Get the device path protocol
+        // Get the device path protocol (First node in the path)
         let device_path_protocol_ptr: *mut *mut DevicePathProtocol = core::ptr::NonNull::<DevicePathProtocol>::dangling().as_ptr() as *mut *mut DevicePathProtocol;
         BootServices::handle_protocol(handles[i] as *const usize, &(DevicePathProtocol::guid()), device_path_protocol_ptr as *mut *mut usize);
         
@@ -83,10 +84,9 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
         
 
         // Traverse the device path
-        let mut traversing = true;
         let mut new_device = false;
         // EFI Device path structure: ACPI->Hardware Device->Messaging Device->Media Device (if applicable)
-        while traversing {
+        loop {
             match (node._type, node.subtype, node.length[0] + node.length[1]) {
                 /* ACPI Device Path Node */
                 (0x02, 1, 12) => {
@@ -98,16 +98,13 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
                         new_device = true;
                         hid = acpi.hid;
                     }
-                    else {
-                        new_device = false;
-                    }
                 }
 
                 _ => {}
             }
 
             /* Hardware device paths */
-            while traversing {   
+            loop {   
                 node = node.next();
                 match (node._type, node.subtype, node.length[0] + node.length[1]) {
                     // PCI Device path
@@ -117,66 +114,129 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
                 }
 
                 /* Messaging Device Paths */
-                while traversing {   
+                loop {
                     node = node.next();
                     match (node._type, node.subtype, node.length[0] + node.length[1]) {
                         // SATA device path node
                         (0x03, 18, 10) => {
                             if new_device {
                                 // create new device
-                                println!("Found a SATA device!");
-                                disk += 1;
-                                slice = 1;
-                                let mut name = String::new();
-                                name.push_str(alloc::format!("/dev/disk{}", disk ).as_str());
-                                println!("Created block descriptor: {} with handle: 0x{:02X}", name, handles[i]);
-                                entries.push(EFIBlockDevice::new(name.as_str(), handles[i] as *const usize));
-
-                                traversing = false;
+                                entries.push(EFIBlockDevice::new(name_device(DeviceType::hdd, &entries).as_str(), handles[i] as *const usize, false, 0));
+                                println!("Created block descriptor: {} with handle: 0x{:02X}", entries.last().unwrap().name, handles[i]);
                                 break;
                             }
                         }
 
                         /* Last node / End of device path */
-                        (0x7F, 0xFF | 0x01, 4) => {
-                            traversing = false;
+                        (0x7F, 0xFF | 0x01, 4) => { break; }
+
+                        _ => { 
+                            println!("Warning: Unknown storage device detected. Ignoring.");
                             break;
                         }
-
-                        _ => { println!("Warning: Unknown storage device detected. Ignoring."); }
                     }
 
 
                     /* Media Device Paths */
-                    while traversing {
+                    loop {
                         node = node.next();
                         match (node._type, node.subtype, node.length[0] + node.length[1]) {
                             // Hard disk device path
                             (0x04, 1, 42) => {
                                 // Create a new slice
-                                let mut name = String::new();
-                                name.push_str(alloc::format!("/dev/disk{}s{}", disk, slice).as_str());
-                                println!("Created block descriptor: {} with handle: 0x{:02X}", name, handles[i]);
-                                entries.push(EFIBlockDevice::new(name.as_str(), handles[i] as *const usize));
-                                slice += 1;
+                                let (name, slice) = name_slice(DeviceType::hdd, &entries);
+                                entries.push(EFIBlockDevice::new(name.as_str(), handles[i] as *const usize, true, slice));
+                                println!("Created block descriptor: {} with handle: 0x{:02X}", entries.last().unwrap().name, handles[i]);
                             }
 
                             /* Last node / End of device path */
-                            (0x7F, 0xFF | 0x01, 4) => {
-                                traversing = false;
-                                break;
-                            }
+                            (0x7F, 0xFF | 0x01, 4) => { break; }
 
                             _ => {}
                         }
+                        break;
                     }
+                    break;
                 }
+                break;
             }
+            break;
         }
     }
 
     entries
 }
+
+enum DeviceType {
+    hdd,
+    removable
+}
+
+fn name_device(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> String {
+    let mut available = true;
+    let mut disk_num = 0;
+
+    loop {
+        let name = {
+            match device_type {
+                DeviceType::hdd => { String::from(alloc::format!("disk{}", disk_num)) }
+
+                _ => { panic!("No naming mechanism for selected device type") }
+            }
+        };
+
+        for dev in devices.iter() {
+            available = true;
+            if dev.name == name {
+                available = false;
+            }
+        }
+
+        if available {
+            return name
+        }
+
+        disk_num+=1;
+    }
+}
+
+fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> (String, u16) {
+    let mut available = true;
+    let mut slice_num = 1;
+
+    let mut disk = &String::new();    
+    for dev in devices.iter().rev() {
+        if !dev.is_slice {
+            disk = &dev.name;
+            break;
+        }
+    }
+
+
+    loop {
+        let name = {
+            match device_type {
+                DeviceType::hdd => { String::from(alloc::format!("{}s{}", disk, slice_num)) }
+
+                _ => { panic!("No naming mechanism for selected device type") }
+            }
+        };
+
+        for dev in devices.iter() {
+            available = true;
+            if dev.name.eq(&name) {
+                available = false;
+            }
+        }
+
+        if available {
+            return (name, slice_num)
+        }
+        slice_num+=1;
+    }
+}
+
+
 
 fn _find_boot_disk() {
     //
