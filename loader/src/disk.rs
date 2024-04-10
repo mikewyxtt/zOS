@@ -1,19 +1,19 @@
 // disk.rs
 
 use crate::uefi::{self, ACPIDevicePath, DevicePathProtocol};
-use alloc::slice;
 use uefi::{LocateSearchType, BootServices, BlockIOProtocol};
 use core::ptr;
 use core::mem::size_of;
 use alloc::{vec, vec::Vec};
 use alloc::string::{String, ToString};
 
+static mut EFI_BLOCK_DEVICES: Vec<EFIBlockDevice> = Vec::new();
+
 struct EFIBlockDevice {
     name: String,
     handle: *const usize,
     is_slice: bool,
     slice_number: u16,
-   // hid:    usize,
 }
 
 impl EFIBlockDevice {
@@ -28,33 +28,16 @@ impl EFIBlockDevice {
     }
 }
 
+pub fn read_bytes_u8(device: &str, lba: u64, buffer: &mut Vec<u8>) {
+    unsafe { read_bytes(device, lba, buffer.len(), buffer.as_ptr().cast()) };
+}
 
+pub unsafe fn read_bytes(device: &str, lba: u64, buffer_size: usize, buffer: *const usize) {
+    let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::NonNull::<BlockIOProtocol>::dangling().as_ptr().cast();
+    uefi::BootServices::handle_protocol(find_device(device).expect("Device not found.").handle, &(BlockIOProtocol::guid()), block_io_protocol.cast());
+    let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
 
-pub fn read_blocks() {
-    let entries = probe_disks();
-
-
-    for disk in entries {
-        if disk.name.cmp(&String::from("/dev/disk0s1")).is_eq() {
-            let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::NonNull::<BlockIOProtocol>::dangling().as_ptr() as *mut *mut BlockIOProtocol;
-            uefi::BootServices::handle_protocol(disk.handle, &(BlockIOProtocol::guid()), block_io_protocol as *mut *mut usize);
-            let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
-
-
-            let buffer: Vec<u8> = vec![0; 512];
-            block_io_protocol.read_blocks(2, 1024, buffer.as_ptr() as *const usize);
-
-
-            let mut ptr = buffer.as_ptr() as usize;
-            ptr += 56;
-            let magic: u16 = unsafe { *(ptr as *const u16) as u16};
-            println!("EXT2 magic: 0x{:X}", magic);
-
-            // use debugutils::hexdump_blocks;
-            // unsafe { hexdump_blocks!(512, 8, 512, buffer.as_ptr()); }
-        }
-        
-    }
+    block_io_protocol.read_blocks(lba, buffer_size, buffer);
 }
 
 
@@ -67,7 +50,7 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
 
     BootServices::locate_handle(LocateSearchType::ByProtocol, &(BlockIOProtocol::guid()), ptr::null(), &mut buffer_size, core::ptr::NonNull::<usize>::dangling().as_ptr());
     let handles: Vec<usize> = vec![0; buffer_size / size_of::<usize>()];
-    BootServices::locate_handle(LocateSearchType::ByProtocol, &(BlockIOProtocol::guid()), ptr::null(), &mut buffer_size, handles.as_ptr() as *mut usize);
+    BootServices::locate_handle(LocateSearchType::ByProtocol, &(BlockIOProtocol::guid()), ptr::null(), &mut buffer_size, handles.as_ptr().cast_mut());
 
     
     // Iterate through the handles, parse the device path and add each disks to a vector
@@ -77,8 +60,8 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
 
     for i in 0..handles.len() {
         // Get the device path protocol (First node in the path)
-        let device_path_protocol_ptr: *mut *mut DevicePathProtocol = core::ptr::NonNull::<DevicePathProtocol>::dangling().as_ptr() as *mut *mut DevicePathProtocol;
-        BootServices::handle_protocol(handles[i] as *const usize, &(DevicePathProtocol::guid()), device_path_protocol_ptr as *mut *mut usize);
+        let device_path_protocol_ptr: *mut *mut DevicePathProtocol = core::ptr::NonNull::<DevicePathProtocol>::dangling().as_ptr().cast();
+        BootServices::handle_protocol(handles[i] as *const usize, &(DevicePathProtocol::guid()), device_path_protocol_ptr.cast());
         
         let mut node: &DevicePathProtocol = unsafe { &mut (**device_path_protocol_ptr)};
         
@@ -200,8 +183,21 @@ fn name_device(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> Strin
     }
 }
 
+fn find_device(name: &str) -> Result<&'static EFIBlockDevice, ()> {
+    unsafe {
+        if !EFI_BLOCK_DEVICES.is_empty() {
+            for device in EFI_BLOCK_DEVICES.iter() {
+                if device.name == name {
+                    return Ok(device)
+                }
+            }
+        }
+    }
+
+    Err(())
+}
+
 fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> (String, u16) {
-    let mut available = true;
     let mut slice_num = 1;
 
     let mut disk = &String::new();    
@@ -212,8 +208,8 @@ fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> (Strin
         }
     }
 
-
     loop {
+        let mut available = true;
         let name = {
             match device_type {
                 DeviceType::hdd => { String::from(alloc::format!("{}s{}", disk, slice_num)) }
@@ -223,7 +219,6 @@ fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> (Strin
         };
 
         for dev in devices.iter() {
-            available = true;
             if dev.name.eq(&name) {
                 available = false;
             }
@@ -238,10 +233,10 @@ fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> (Strin
 
 
 
-fn _find_boot_disk() {
-    //
-}
-
-pub fn _initialize() {
-    //
+pub fn init() {
+    unsafe { 
+        if EFI_BLOCK_DEVICES.is_empty() { 
+            EFI_BLOCK_DEVICES = probe_disks();
+        }
+    }
 }
