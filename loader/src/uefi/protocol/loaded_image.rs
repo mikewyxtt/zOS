@@ -1,14 +1,12 @@
 #![allow(dead_code)]
 
-use core::ffi::c_void;
-
 use super::{super::general::GUID, device_path::DevicePathProtocol};
 use super::super::{SystemTable, bootservices::MemoryType};
 
 // Each loaded image has an image handle that supports EFI_LOADED_IMAGE_PROTOCOL. When an image is
 // started, it is passed the image handle for itself. The image can use the handle to obtain its relevant image data stored
 // in the EFI_LOADED_IMAGE_PROTOCOL structure, such as its load options.
-#[repr(C, packed)]
+#[repr(C)]
 pub struct LoadedImageProtocol {
     pub revision:           u32,
     _parent_handle:         *const usize,
@@ -17,11 +15,11 @@ pub struct LoadedImageProtocol {
     /// Device handle the EFI image was loaded from
     pub device_handle:      *const usize,
    
-    _file_path:             *const DevicePathProtocol,
-    _reserved:              *const c_void,
+    pub file_path:          *const DevicePathProtocol,
+    _reserved:              *const usize,
     _load_options_size:     u32,
-    _load_options:          *const c_void,
-    _image_base:            *const c_void,
+    _load_options:          *const usize,
+    _image_base:            *const usize,
     _image_size:            u64,
     _image_code_type:       MemoryType,
     _image_data_type:       MemoryType,
