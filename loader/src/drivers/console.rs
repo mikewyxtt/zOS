@@ -1,5 +1,6 @@
-use crate::uefi;
 use core::fmt::{Write, Error, self};
+
+use crate::uefi::protocol::simpletextoutput::SimpleTextOutputProtocol;
 
 
 /// Prints a formatted string with NO trailing newline to console output.
@@ -18,7 +19,7 @@ macro_rules! println {
 
 /// Clears the console
 pub fn reset() {
-    uefi::SimpleTextOutputProtocol::reset();
+    SimpleTextOutputProtocol::reset();
 }
 
 
@@ -43,12 +44,12 @@ impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
         // UEFI requires UTF-16 string literals. So, we simply create a 16 bit array with the char and '\0' so it thinks it is the end of the string, then call the UEFI output_string function with a pointer to the array. It works...
         let utf16_str: [u16; 2] = [byte.into(), b'\0'.into()];
-        uefi::SimpleTextOutputProtocol::output_string(utf16_str.as_ptr());
+        SimpleTextOutputProtocol::output_string(utf16_str.as_ptr());
 
         // UEFI is similar to serial in that you have to write the carriage return as well as the newline to reset the cursor
         if byte == b'\n' {
             let utf16_str: [u16; 2] = [b'\r'.into(), b'\0'.into()];
-            uefi::SimpleTextOutputProtocol::output_string(utf16_str.as_ptr());
+            SimpleTextOutputProtocol::output_string(utf16_str.as_ptr());
         }
     }
 }

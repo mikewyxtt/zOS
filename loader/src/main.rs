@@ -7,9 +7,9 @@
 extern crate alloc;
 
 #[macro_use]
-mod uefi;
 mod allocator;
 mod drivers;
+mod uefi;
 
 use alloc::vec;
 use alloc::vec::Vec;

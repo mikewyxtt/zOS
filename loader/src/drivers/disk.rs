@@ -2,16 +2,18 @@
 #![allow(dead_code)]
 
 
-use crate::uefi::{self, ACPIDevicePath, DevicePathProtocol};
-use uefi::{LocateSearchType, BootServices, BlockIOProtocol};
 use core::ptr;
 use core::mem::size_of;
 use alloc::{vec, vec::Vec};
 use alloc::string::{String, ToString};
 
+use crate::uefi::bootservices::{BootServices, LocateSearchType};
+use crate::uefi::protocol::blockio::BlockIOProtocol;
+use crate::uefi::protocol::devicepath::{ACPIDevicePath, DevicePathProtocol};
+
 
 static mut EFI_BLOCK_DEVICES: Vec<EFIBlockDevice> = Vec::new();
-//static mut BOOT_DEVICE_HANDLE: *const usize = core::ptr::dangling();
+static mut BOOT_DEVICE_HANDLE: *const usize = core::ptr::dangling();
 
 
 struct EFIBlockDevice {
@@ -68,7 +70,7 @@ pub fn read_bytes_u8(device: &str, lba: u64, count: usize, buffer: &[u8]) -> Res
 /// buffer: Vector to fill with bytes
 pub unsafe fn read_bytes(device: &str, lba: u64, count: usize, buffer: *const usize) {
     let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::dangling_mut();
-    uefi::BootServices::handle_protocol(find_device(device).expect("Device not found.").handle, &(BlockIOProtocol::guid()), block_io_protocol.cast());
+    BootServices::handle_protocol(find_device(device).expect("Device not found.").handle, &(BlockIOProtocol::guid()), block_io_protocol.cast());
     let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
 
     block_io_protocol.read_blocks(lba, count, buffer);
