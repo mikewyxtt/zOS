@@ -2,6 +2,7 @@
 
 use crate::uefi::{self, ACPIDevicePath, DevicePathProtocol};
 use uefi::{LocateSearchType, BootServices, BlockIOProtocol};
+use core::fmt::Error;
 use core::ptr;
 use core::mem::size_of;
 use alloc::{vec, vec::Vec};
@@ -13,18 +14,31 @@ struct EFIBlockDevice {
     name: String,
     handle: *const usize,
     is_slice: bool,
-    slice_number: u16,
 }
 
 impl EFIBlockDevice {
-    pub fn new(name: &str, handle: *const usize, is_slice: bool, slice_number: u16) -> Self {
+    pub fn new(name: &str, handle: *const usize, is_slice: bool) -> Self {
         let name = name.to_string();
         Self {
             name,
             handle,
             is_slice,
-            slice_number
         }
+    }
+}
+
+/// Reads bytes into a vector.
+/// count: Number of bytes to read
+/// lba: Logical block address, which logical block to start reading from
+/// device: Deivce to read from. e.g disk0s0
+/// buffer: Vector to fill with bytes
+pub fn read_bytes_vec<T>(device: &str, lba: u64, count: usize, buffer: &mut Vec<T>) -> Result<(), String> {
+    if count <= buffer.len() {
+        unsafe { read_bytes(device, lba, count, buffer.as_ptr().cast()) };
+        Ok(())
+    }
+    else {
+        Err(alloc::format!("Invalid byte count: {}. Buffer is only {} bytes long", count, buffer.len()).to_string())
     }
 }
 
@@ -32,12 +46,12 @@ pub fn read_bytes_u8(device: &str, lba: u64, buffer: &mut Vec<u8>) {
     unsafe { read_bytes(device, lba, buffer.len(), buffer.as_ptr().cast()) };
 }
 
-pub unsafe fn read_bytes(device: &str, lba: u64, buffer_size: usize, buffer: *const usize) {
+pub unsafe fn read_bytes(device: &str, lba: u64, count: usize, buffer: *const usize) {
     let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::NonNull::<BlockIOProtocol>::dangling().as_ptr().cast();
     uefi::BootServices::handle_protocol(find_device(device).expect("Device not found.").handle, &(BlockIOProtocol::guid()), block_io_protocol.cast());
     let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
 
-    block_io_protocol.read_blocks(lba, buffer_size, buffer);
+    block_io_protocol.read_blocks(lba, count, buffer);
 }
 
 
@@ -104,7 +118,7 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
                         (0x03, 18, 10) => {
                             if new_device {
                                 // create new device
-                                entries.push(EFIBlockDevice::new(name_device(DeviceType::hdd, &entries).as_str(), handles[i] as *const usize, false, 0));
+                                entries.push(EFIBlockDevice::new(name_device(DeviceType::hdd, &entries).as_str(), handles[i] as *const usize, false));
                                 println!("Created block descriptor: {} with handle: 0x{:02X}", entries.last().unwrap().name, handles[i]);
                                 break;
                             }
@@ -127,8 +141,8 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
                             // Hard disk device path
                             (0x04, 1, 42) => {
                                 // Create a new slice
-                                let (name, slice) = name_slice(DeviceType::hdd, &entries);
-                                entries.push(EFIBlockDevice::new(name.as_str(), handles[i] as *const usize, true, slice));
+                                let name = name_slice(DeviceType::hdd, &entries);
+                                entries.push(EFIBlockDevice::new(name.as_str(), handles[i] as *const usize, true));
                                 println!("Created block descriptor: {} with handle: 0x{:02X}", entries.last().unwrap().name, handles[i]);
                             }
 
@@ -197,7 +211,7 @@ fn find_device(name: &str) -> Result<&'static EFIBlockDevice, ()> {
     Err(())
 }
 
-fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> (String, u16) {
+fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> String {
     let mut slice_num = 1;
 
     let mut disk = &String::new();    
@@ -225,7 +239,7 @@ fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> (Strin
         }
 
         if available {
-            return (name, slice_num)
+            return name
         }
         slice_num+=1;
     }
@@ -233,10 +247,14 @@ fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> (Strin
 
 
 
-pub fn init() {
+pub fn init() -> Result<(), String>{
     unsafe { 
         if EFI_BLOCK_DEVICES.is_empty() { 
             EFI_BLOCK_DEVICES = probe_disks();
+            Ok(())
+        }
+        else {
+            Err("UEFI disk driver cannot be initialized more than once.".to_string())
         }
     }
 }
