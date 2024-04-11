@@ -13,6 +13,7 @@ use alloc::string::{String, ToString};
 static mut EFI_BLOCK_DEVICES: Vec<EFIBlockDevice> = Vec::new();
 
 
+
 struct EFIBlockDevice {
     name: String,
     handle: *const usize,
@@ -50,7 +51,7 @@ pub fn read_bytes_u8(device: &str, lba: u64, buffer: &mut Vec<u8>) {
 }
 
 pub unsafe fn read_bytes(device: &str, lba: u64, count: usize, buffer: *const usize) {
-    let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::NonNull::<BlockIOProtocol>::dangling().as_ptr().cast();
+    let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::dangling_mut();
     uefi::BootServices::handle_protocol(find_device(device).expect("Device not found.").handle, &(BlockIOProtocol::guid()), block_io_protocol.cast());
     let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
 
@@ -66,7 +67,7 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
      */
     let mut buffer_size = 0;
 
-    BootServices::locate_handle(LocateSearchType::ByProtocol, &(BlockIOProtocol::guid()), ptr::null(), &mut buffer_size, core::ptr::NonNull::<usize>::dangling().as_ptr());
+    BootServices::locate_handle(LocateSearchType::ByProtocol, &(BlockIOProtocol::guid()), ptr::null(), &mut buffer_size, core::ptr::dangling_mut());
     let handles: Vec<usize> = vec![0; buffer_size / size_of::<usize>()];
     BootServices::locate_handle(LocateSearchType::ByProtocol, &(BlockIOProtocol::guid()), ptr::null(), &mut buffer_size, handles.as_ptr().cast_mut());
 
@@ -78,7 +79,7 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
 
     for i in 0..handles.len() {
         // Get the device path protocol (First node in the path)
-        let device_path_protocol_ptr: *mut *mut DevicePathProtocol = core::ptr::NonNull::<DevicePathProtocol>::dangling().as_ptr().cast();
+        let device_path_protocol_ptr: *mut *mut DevicePathProtocol = core::ptr::dangling_mut();
         BootServices::handle_protocol(handles[i] as *const usize, &(DevicePathProtocol::guid()), device_path_protocol_ptr.cast());
         
         let mut node: &DevicePathProtocol = unsafe { &mut (**device_path_protocol_ptr)};
