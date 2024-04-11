@@ -11,7 +11,7 @@ use alloc::string::{String, ToString};
 
 
 static mut EFI_BLOCK_DEVICES: Vec<EFIBlockDevice> = Vec::new();
-
+//static mut BOOT_DEVICE_HANDLE: *const usize = core::ptr::dangling();
 
 
 struct EFIBlockDevice {
@@ -34,7 +34,7 @@ impl EFIBlockDevice {
 /// Reads bytes into a vector.
 /// count: Number of bytes to read
 /// lba: Logical block address, which logical block to start reading from
-/// device: Deivce to read from. e.g disk0s0
+/// device: Device to read from. e.g disk0s0
 /// buffer: Vector to fill with bytes
 pub fn read_bytes_vec<T>(device: &str, lba: u64, count: usize, buffer: &mut Vec<T>) -> Result<(), String> {
     if count <= buffer.len() {
@@ -46,10 +46,26 @@ pub fn read_bytes_vec<T>(device: &str, lba: u64, count: usize, buffer: &mut Vec<
     }
 }
 
-pub fn read_bytes_u8(device: &str, lba: u64, buffer: &mut Vec<u8>) {
-    unsafe { read_bytes(device, lba, buffer.len(), buffer.as_ptr().cast()) };
+/// Reads bytes into a u8 array.
+/// count: Number of bytes to read
+/// lba: Logical block address, which logical block to start reading from
+/// device: Deivce to read from. e.g disk0s0
+/// buffer: Vector to fill with bytes
+pub fn read_bytes_u8(device: &str, lba: u64, count: usize, buffer: &[u8]) -> Result<(), String> {
+    if count <= buffer.len() {
+        unsafe { read_bytes(device, lba, buffer.len(), buffer.as_ptr().cast()) };
+        Ok(())
+    }
+    else {
+        Err(alloc::format!("Invalid byte count: {}. Buffer is only {} bytes long", count, buffer.len()).to_string())
+    }
 }
 
+/// Reads bytes into a buffer. buffer is a raw ptr, and is unsafe as the boundaries cannot be checked.
+/// count: Number of bytes to read
+/// lba: Logical block address, which logical block to start reading from
+/// device: Deivce to read from. e.g disk0s0
+/// buffer: Vector to fill with bytes
 pub unsafe fn read_bytes(device: &str, lba: u64, count: usize, buffer: *const usize) {
     let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::dangling_mut();
     uefi::BootServices::handle_protocol(find_device(device).expect("Device not found.").handle, &(BlockIOProtocol::guid()), block_io_protocol.cast());
