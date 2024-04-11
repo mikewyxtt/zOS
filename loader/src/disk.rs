@@ -1,4 +1,6 @@
 // disk.rs
+#![allow(dead_code)]
+
 
 use crate::uefi::{self, ACPIDevicePath, DevicePathProtocol};
 use uefi::{LocateSearchType, BootServices, BlockIOProtocol};
@@ -7,7 +9,9 @@ use core::mem::size_of;
 use alloc::{vec, vec::Vec};
 use alloc::string::{String, ToString};
 
+
 static mut EFI_BLOCK_DEVICES: Vec<EFIBlockDevice> = Vec::new();
+
 
 struct EFIBlockDevice {
     name: String,
@@ -56,7 +60,8 @@ pub unsafe fn read_bytes(device: &str, lba: u64, count: usize, buffer: *const us
 
 /// Searches for block devices and returns a Vector of EFIBlockDevice structs
 fn probe_disks() -> Vec<EFIBlockDevice> {
-    /* The locate_handle() function from the UEFI boot services table places a pointer in 'buffer' to an array of handles supporting the protocol that is being searched for. We obviously don't know how big the array is at compile time but fortunately if you call the function with
+    /* 
+     * The locate_handle() function from the UEFI boot services table places a pointer in 'buffer' to an array of handles supporting the protocol that is being searched for. We obviously don't know how big the array is at compile time but fortunately if you call the function with
      * buffer_size set to 0 it will change buffer_size the size needed to hold the array. We can then create a vector with that value to hold the array of handles.
      */
     let mut buffer_size = 0;
@@ -117,7 +122,7 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
                         (0x03, 18, 10) => {
                             if new_device {
                                 // create new device
-                                entries.push(EFIBlockDevice::new(name_device(DeviceType::hdd, &entries).as_str(), handles[i] as *const usize, false));
+                                entries.push(EFIBlockDevice::new(name_device(DeviceType::HDD, &entries).as_str(), handles[i] as *const usize, false));
                                 println!("Created block descriptor: {} with handle: 0x{:02X}", entries.last().unwrap().name, handles[i]);
                                 break;
                             }
@@ -140,7 +145,7 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
                             // Hard disk device path
                             (0x04, 1, 42) => {
                                 // Create a new slice
-                                let name = name_slice(DeviceType::hdd, &entries);
+                                let name = name_slice(DeviceType::HDD, &entries);
                                 entries.push(EFIBlockDevice::new(name.as_str(), handles[i] as *const usize, true));
                                 println!("Created block descriptor: {} with handle: 0x{:02X}", entries.last().unwrap().name, handles[i]);
                             }
@@ -164,8 +169,8 @@ fn probe_disks() -> Vec<EFIBlockDevice> {
 }
 
 enum DeviceType {
-    hdd,
-    removable
+    HDD,
+    Removable
 }
 
 fn name_device(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> String {
@@ -175,7 +180,7 @@ fn name_device(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> Strin
     loop {
         let name = {
             match device_type {
-                DeviceType::hdd => { String::from(alloc::format!("disk{}", disk_num)) }
+                DeviceType::HDD => { String::from(alloc::format!("disk{}", disk_num)) }
 
                 _ => { panic!("No naming mechanism for selected device type") }
             }
@@ -225,7 +230,7 @@ fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> String
         let mut available = true;
         let name = {
             match device_type {
-                DeviceType::hdd => { String::from(alloc::format!("{}s{}", disk, slice_num)) }
+                DeviceType::HDD => { String::from(alloc::format!("{}s{}", disk, slice_num)) }
 
                 _ => { panic!("No naming mechanism for selected device type") }
             }
