@@ -77,7 +77,7 @@ all() {
 }
 
 clean() {
-	sh hal/i386/initializer/pkgbuild.sh clean
+	sh loader/pkgbuild.sh clean
 }
 
 release() {
