@@ -2,7 +2,6 @@
 
 use crate::uefi::{self, ACPIDevicePath, DevicePathProtocol};
 use uefi::{LocateSearchType, BootServices, BlockIOProtocol};
-use core::fmt::Error;
 use core::ptr;
 use core::mem::size_of;
 use alloc::{vec, vec::Vec};
