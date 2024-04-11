@@ -39,7 +39,7 @@ impl EFIBlockDevice {
 /// device: Device to read from. e.g disk0s0
 /// buffer: Vector to fill with bytes
 pub fn read_bytes_vec<T>(device: &str, lba: u64, count: usize, buffer: &mut Vec<T>) -> Result<(), String> {
-    if count <= buffer.len() {
+    if count <= buffer.len() * core::mem::size_of::<T>() {
         unsafe { read_bytes(device, lba, count, buffer.as_ptr().cast()) };
         Ok(())
     }
@@ -52,7 +52,7 @@ pub fn read_bytes_vec<T>(device: &str, lba: u64, count: usize, buffer: &mut Vec<
 /// count: Number of bytes to read
 /// lba: Logical block address, which logical block to start reading from
 /// device: Deivce to read from. e.g disk0s0
-/// buffer: Vector to fill with bytes
+/// buffer: Array to fill with bytes
 pub fn read_bytes_u8(device: &str, lba: u64, count: usize, buffer: &[u8]) -> Result<(), String> {
     if count <= buffer.len() {
         unsafe { read_bytes(device, lba, buffer.len(), buffer.as_ptr().cast()) };
@@ -67,7 +67,7 @@ pub fn read_bytes_u8(device: &str, lba: u64, count: usize, buffer: &[u8]) -> Res
 /// count: Number of bytes to read
 /// lba: Logical block address, which logical block to start reading from
 /// device: Deivce to read from. e.g disk0s0
-/// buffer: Vector to fill with bytes
+/// buffer: Buffer to fill with bytes
 pub unsafe fn read_bytes(device: &str, lba: u64, count: usize, buffer: *const usize) {
     let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::dangling_mut();
     BootServices::handle_protocol(find_device(device).expect("Device not found.").handle, &(BlockIOProtocol::guid()), block_io_protocol.cast());
