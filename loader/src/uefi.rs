@@ -274,6 +274,16 @@ impl DevicePathProtocol {
     }
 }
 
+#[repr(C, packed)]
+pub struct ACPIDevicePath {
+    pub _type: u8,
+    pub subtype: u8,
+    pub length: [u8; 2],
+    pub hid: u32,
+    pub uid: u32
+}
+
+
 /* Media Access */
 
 #[repr(C)]
@@ -316,7 +326,7 @@ pub struct BlockIOMedia {
 
 
 /// Initializes the pointer to the system table
-pub fn initialize(image_handle: *const usize, system_table: *const SystemTable) {
+pub fn init(image_handle: *const usize, system_table: *const SystemTable) {
     unsafe { 
         // TODO: add a check validating these pointers
         SYSTEM_TABLE = system_table;
