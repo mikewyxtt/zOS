@@ -3,7 +3,7 @@
 
 use core::{ffi::c_void, sync::atomic::{AtomicPtr, Ordering}};
 use super::bootservices::BootServices;
-use super::protocol::simpletextoutput::SimpleTextOutputProtocol;
+use super::protocol::simple_text_output::SimpleTextOutputProtocol;
 
 pub static SYSTEM_TABLE_PTR: AtomicPtr<SystemTable> = AtomicPtr::new(core::ptr::dangling_mut());
 pub static IMAGE_HANDLE: AtomicPtr<usize> = AtomicPtr::new(core::ptr::null_mut());

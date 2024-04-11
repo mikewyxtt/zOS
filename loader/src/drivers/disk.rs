@@ -8,8 +8,8 @@ use alloc::{vec, vec::Vec};
 use alloc::string::{String, ToString};
 
 use crate::uefi::bootservices::{BootServices, LocateSearchType};
-use crate::uefi::protocol::blockio::BlockIOProtocol;
-use crate::uefi::protocol::devicepath::{ACPIDevicePath, DevicePathProtocol};
+use crate::uefi::protocol::block_io::BlockIOProtocol;
+use crate::uefi::protocol::device_path::{ACPIDevicePath, DevicePathProtocol};
 
 
 static mut EFI_BLOCK_DEVICES: Vec<EFIBlockDevice> = Vec::new();

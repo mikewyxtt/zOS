@@ -1,6 +1,6 @@
 use core::fmt::{Write, Error, self};
 
-use crate::uefi::protocol::simpletextoutput::SimpleTextOutputProtocol;
+use crate::uefi::protocol::simple_text_output::SimpleTextOutputProtocol;
 
 
 /// Prints a formatted string with NO trailing newline to console output.
