@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use core::ffi::c_void;
-use super::super::general::GUID;
+use super::super::GUID;
 
 #[repr(C)]
 pub struct BlockIOProtocol {
@@ -19,8 +19,8 @@ impl BlockIOProtocol {
         GUID::new(0x964e5b21, 0x6459, 0x11d2, [0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b])
     }
 
-    // /// Reads from the disk
-    pub fn read_blocks(&self, lba: u64, buffer_size: usize, buffer: *const usize) -> u32 {
+    /// Reads from the disk
+    pub fn read_blocks<T>(&self, lba: u64, buffer_size: usize, buffer: *mut T) -> u32 {
         unsafe { (self._read_blocks)(self, (*self.media).media_id, lba, buffer_size, buffer as *const c_void) }
     }
 }
