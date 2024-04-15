@@ -1,7 +1,7 @@
 // allocator.rs
 
 use core::alloc::{GlobalAlloc, Layout};
-use crate::uefi::bootservices::{BootServices, MemoryType};
+use crate::libuefi::bootservices::{BootServices, MemoryType};
 
 #[global_allocator]
 static ALLOCATOR: Allocator = Allocator;
