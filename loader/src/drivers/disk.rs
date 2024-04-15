@@ -4,16 +4,19 @@
 
 use core::ptr;
 use core::mem::size_of;
+use alloc::boxed::Box;
 use alloc::{vec, vec::Vec};
 use alloc::string::{String, ToString};
 
-use crate::uefi::bootservices::{BootServices, LocateSearchType};
-use crate::uefi::protocol::block_io::BlockIOProtocol;
-use crate::uefi::protocol::device_path::{ACPIDevicePath, DevicePathProtocol};
+use crate::libuefi::bootservices::{BootServices, LocateSearchType};
+use crate::libuefi::protocol::block_io::BlockIOProtocol;
+use crate::libuefi::protocol::device_path::{ACPIDevicePath, DevicePathProtocol};
+use crate::libuefi::protocol::loaded_image::LoadedImageProtocol;
 
 
 static mut EFI_BLOCK_DEVICES: Vec<EFIBlockDevice> = Vec::new();
-static mut BOOT_DEVICE_HANDLE: *const usize = core::ptr::dangling();
+
+const BLOCK_SIZE: usize = 512;
 
 
 struct EFIBlockDevice {
@@ -33,48 +36,117 @@ impl EFIBlockDevice {
     }
 }
 
-/// Reads bytes into a vector.
-/// count: Number of bytes to read
-/// lba: Logical block address, which logical block to start reading from
-/// device: Device to read from. e.g disk0s0
-/// buffer: Vector to fill with bytes
-pub fn read_bytes_vec<T>(device: &str, lba: u64, count: usize, buffer: &mut Vec<T>) -> Result<(), String> {
-    if count <= buffer.len() * core::mem::size_of::<T>() {
-        unsafe { read_bytes(device, lba, count, buffer.as_ptr().cast()) };
-        Ok(())
-    }
-    else {
-        Err(alloc::format!("Invalid byte count: {}. Buffer is only {} bytes long", count, buffer.len()).to_string())
+
+
+
+/// Reads data from the disk as Box<T>
+pub fn read_bytes_into_box<T>(dev: &str, lba: u64, count: usize) -> Box<T> {
+    assert!(count <= size_of::<T>());
+
+    let mut t: Box<T> = unsafe { Box::new(core::mem::zeroed()) };
+
+    let buffer = read_bytes(dev, lba, count).unwrap();
+    unsafe { core::ptr::copy(buffer.as_ptr(), (t.as_mut() as *mut T).cast(), count); }
+
+    t
+}
+
+
+
+
+
+
+/// Reads data from the disk into T
+pub fn read_bytes_into<T>(dev: &str, lba: u64, count: usize, buffer: &mut T) {
+    assert!(count <= core::mem::size_of_val(buffer));
+    unsafe { read_bytes_raw(dev, lba, count, (buffer as *mut T).cast()).unwrap(); }
+}
+
+
+
+
+
+
+
+pub fn read_bytes(dev: &str, lba: u64, count: usize) -> Result<Vec<u8>, String> {
+    let mut buffer: Vec<u8> = vec![0; count];
+
+    match unsafe { read_bytes_raw(dev, lba, count, buffer.as_mut_ptr()) } {
+        Ok(_) => Ok(buffer),
+        Err(error) => Err(error)
     }
 }
 
-/// Reads bytes into a u8 array.
-/// count: Number of bytes to read
-/// lba: Logical block address, which logical block to start reading from
-/// device: Deivce to read from. e.g disk0s0
-/// buffer: Array to fill with bytes
-pub fn read_bytes_u8(device: &str, lba: u64, count: usize, buffer: &[u8]) -> Result<(), String> {
-    if count <= buffer.len() {
-        unsafe { read_bytes(device, lba, buffer.len(), buffer.as_ptr().cast()) };
-        Ok(())
-    }
-    else {
-        Err(alloc::format!("Invalid byte count: {}. Buffer is only {} bytes long", count, buffer.len()).to_string())
-    }
-}
 
-/// Reads bytes into a buffer. buffer is a raw ptr, and is unsafe as the boundaries cannot be checked.
+
+
+
+
+
+
+/// Reads bytes from the disk into a buffer. 'buffer' is a raw ptr, and is unsafe as the boundaries cannot be checked.
+/// 
 /// count: Number of bytes to read
 /// lba: Logical block address, which logical block to start reading from
-/// device: Deivce to read from. e.g disk0s0
+/// device: Deivce to read from. e.g disk0s1
 /// buffer: Buffer to fill with bytes
-pub unsafe fn read_bytes(device: &str, lba: u64, count: usize, buffer: *const usize) {
+pub unsafe fn read_bytes_raw(device: &str, lba: u64, count: usize, buffer: *mut u8) -> Result<(), String> {
+    // If the count is smaller than the block size, UEFI error out. To mitigate this we create our own buffer can hold at least one block, read the block into it, then copy the requested amount of bytes into the callers buffer
+    if count < BLOCK_SIZE {
+        let mut tmp: Vec<u8> = vec![0; BLOCK_SIZE];
+
+        match _uefi_read_bytes_raw(device, lba, BLOCK_SIZE, tmp.as_mut_ptr()) {
+            Ok(_) => {
+                ptr::copy(tmp.as_ptr(), buffer.cast(), count);
+                Ok(())
+            }
+
+            Err(error) => Err(error)
+        }
+    }
+
+    else {
+        _uefi_read_bytes_raw(device, lba, count, buffer)
+    }
+}
+
+
+
+
+
+
+unsafe fn _uefi_read_bytes_raw(dev: &str, lba: u64, count: usize, buffer: *mut u8) -> Result<(), String> {
     let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::dangling_mut();
-    BootServices::handle_protocol(find_device(device).expect("Device not found.").handle, &(BlockIOProtocol::guid()), block_io_protocol.cast());
+    BootServices::handle_protocol(find_device(dev).expect("Device not found.").handle, &(BlockIOProtocol::guid()), block_io_protocol.cast());
     let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
 
-    block_io_protocol.read_blocks(lba, count, buffer);
+    if count < BLOCK_SIZE {
+        let mut tmp: Vec<u8> = vec![0; BLOCK_SIZE];
+        let status = block_io_protocol.read_blocks(lba, BLOCK_SIZE, tmp.as_mut_ptr());
+        if status == 0 {
+            unsafe { ptr::copy(tmp.as_ptr(), buffer, count) };
+            Ok(())
+        }
+        else {
+            Err(alloc::format!("EFI ERROR: {}", status).to_string())
+        }
+    }
+
+    else {
+        let status = block_io_protocol.read_blocks(lba, count, buffer);
+        if status == 0 {
+            Ok(())
+        }
+        else {
+            Err(alloc::format!("EFI ERROR: {}", status).to_string())
+        }
+    }
 }
+
+
+
+
+
 
 
 /// Searches for block devices and returns a Vector of EFIBlockDevice structs
@@ -268,6 +340,20 @@ fn name_slice(device_type: DeviceType, devices: &Vec<EFIBlockDevice> ) -> String
     }
 }
 
+/// Returns the name of the slice containing the EFI System Partition
+pub fn find_efi_slice() -> Result<&'static str, String> {
+    let loaded_image_protocol: *mut *mut LoadedImageProtocol = core::ptr::dangling_mut();
+    BootServices::handle_protocol(crate::libuefi::IMAGE_HANDLE.load(core::sync::atomic::Ordering::SeqCst), &(LoadedImageProtocol::guid()), loaded_image_protocol.cast());
+    let loaded_image_protocol: &LoadedImageProtocol = unsafe { &mut (**loaded_image_protocol)};
+
+    for dev in unsafe { EFI_BLOCK_DEVICES.iter() } {
+        if dev.handle == loaded_image_protocol.device_handle {
+            return Ok(dev.name.as_str())
+        }
+    }
+
+    Err("Could not find EFI System Partition slice.".to_string())
+}
 
 
 pub fn init() -> Result<(), String>{
