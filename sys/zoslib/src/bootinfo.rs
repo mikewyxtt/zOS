@@ -63,16 +63,9 @@ pub struct BootInfo<T> {
 
 impl<T> BootInfo<T> {
     pub fn new() -> Self {
-        let v = env!("zOS_VERSION");
-        let mut version = ['\0'; 8];
-
-        for (i, byte) in v.bytes().enumerate() {
-            version[i] = byte.into();
-        }
-
         Self {
             magic:          BOOTINFO_MAGIC,
-            version:        version,
+            version:        misc::get_version(),
             size:           core::mem::size_of::<Self>(),
             cmdline:        ['\0'; 50],
             framebuffer:    unsafe { core::mem::zeroed() },
