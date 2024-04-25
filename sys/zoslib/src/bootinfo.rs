@@ -18,7 +18,7 @@
  */
 #![allow(dead_code)]
 
-const BOOTINFO_MAGIC: u16 = 0xFAFA;
+pub const BOOTINFO_MAGIC: u16 = 0xFAFA;
 
 #[repr(C)]
 pub struct MemoryMap {
