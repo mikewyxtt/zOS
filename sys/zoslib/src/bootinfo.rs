@@ -16,26 +16,37 @@
  *  You should have received a copy of the GNU General Public License
  *  along with zOS. If not, see <http://www.gnu.org/licenses/>.
  */
+
 #![allow(dead_code)]
 
-pub const BOOTINFO_MAGIC: u16 = 0xFAFA;
+use core::mem::size_of;
+
+const MAX_MEMORY_MAP_ENTRIES: usize = 18;
+const MAX_EXTENSION_COUNT: usize = 32;
+const MAX_CMDLINE_SIZE: usize = 50;
+
+const BOOTINFO_MAGIC: u16 = 0xFAFA;
+const BOOTINFO_END: u16 = 0xFF77;
 
 #[repr(C)]
 pub struct MemoryMap {
     pub start:      usize,
-    pub size:       usize,
+    pub len:        usize,
     pub _type:      u8,
 }
+
 
 #[repr(C)]
 pub struct Extension {
     pub name:       [char; 24],
+    pub path:       [char; 100],
     pub addr:       usize,
     pub size:       usize,
 }
 
+
 #[repr(C)]
-pub struct Framebuffer {
+pub struct FBInfo {
     pub enabled:     bool,
     pub addr:        usize,
     pub width:       u32,
@@ -45,34 +56,38 @@ pub struct Framebuffer {
     pub size:        u64,
 }
 
+
 #[repr(C)]
-pub struct BootInfo<T> {
+pub struct BootInfo {
     pub magic:          u16,
     pub version:        [char; 8],
     pub size:           usize,
 
-    pub cmdline:        [char; 50],             // Boot command line
-    pub framebuffer:    Framebuffer,
-    pub memory_map:     [MemoryMap; 24],
-    pub extensions:     [Extension; 32],
-    pub arch_info:      T,                      // Architecture specific stuff
-
-    pub end:            u16,                    // Value that can be checked to ensure struct boundaries are correct
+    pub cmdline:        [char; MAX_CMDLINE_SIZE],               // Boot command line
+    pub fb_info:        FBInfo,
+    pub memory_map:     [MemoryMap; MAX_MEMORY_MAP_ENTRIES],
+    pub extensions:     [Extension; MAX_EXTENSION_COUNT],
+    pub end:            u16,
 }
 
 
-impl<T> BootInfo<T> {
-    pub fn new() -> Self {
-        Self {
-            magic:          BOOTINFO_MAGIC,
-            version:        misc::get_version(),
-            size:           core::mem::size_of::<Self>(),
-            cmdline:        ['\0'; 50],
-            framebuffer:    unsafe { core::mem::zeroed() },
-            memory_map:     unsafe { core::mem::zeroed() },
-            extensions:     unsafe { core::mem::zeroed() },
-            arch_info:      unsafe { core::mem::zeroed() },
-            end:            0xFF55,
-        }
+
+impl BootInfo {
+    /// Returns an empty BootInfo struct
+    pub fn new_empty() -> Self {
+        let mut bootinfo = unsafe { core::mem::zeroed::<Self>() };
+        bootinfo.size = size_of::<Self>();
+
+        bootinfo
+    }
+
+    // Returns a reference to the BootInfo struct. Performs checks on magic numbers and size to ensure the reference is valid.
+    pub fn get(ptr: *const BootInfo) -> &'static Self {
+        let bootinfo: &Self = unsafe { &*ptr };
+        assert!(bootinfo.magic == BOOTINFO_MAGIC);
+        assert!(bootinfo.end == BOOTINFO_END);
+        assert!(bootinfo.size == size_of::<BootInfo>());
+
+        bootinfo
     }
 }
