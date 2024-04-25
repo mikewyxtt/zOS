@@ -5,7 +5,7 @@ set -e
 export zOS_SRC_ROOT=$PWD
 export zOS_VERSION="0.0.1"
 
-APPS=("loader")
+APPS=("base/loader")
 
 # Creates a memstick image
 memstick() {
