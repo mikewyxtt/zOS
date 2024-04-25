@@ -78,7 +78,7 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
 
 
 struct BootInfo {
-    pub version:    u16,
+    pub version:    &'static str,       // check to make sure the size of this is calculated accurately at compile time.
     pub size:       usize,
 
     pub arch:       AMD64BootInfo,
@@ -88,7 +88,7 @@ struct BootInfo {
 impl BootInfo {
     pub fn new() -> Self {
         Self {
-            version:    0,
+            version:    env!("zOS_VERSION"),
             size:       core::mem::size_of::<Self>(),
             arch:       unsafe { core::mem::zeroed() },
             end:        0xFAFA,
