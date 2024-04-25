@@ -74,3 +74,28 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
         test();
     }
 }
+
+
+
+struct BootInfo {
+    pub version:    u16,
+    pub size:       usize,
+
+    pub arch:       AMD64BootInfo,
+    pub end:        u8,
+}
+
+impl BootInfo {
+    pub fn new() -> Self {
+        Self {
+            version:    0,
+            size:       core::mem::size_of::<Self>(),
+            arch:       unsafe { core::mem::zeroed() },
+            end:        0xFAFA,
+        }
+    }
+}
+
+struct AMD64BootInfo {
+    cpuid:      u32,
+}
