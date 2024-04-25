@@ -1,28 +1,28 @@
 /*  hal/i386/initializer/src/initbootinfo.rs - Initialize bootinfo tables
  *
- *  chimera  --  Advanced *NIX System
+ *  zOS  --  Advanced *NIX System
  *  Copyright (C) 2024  Free Software Foundation, Inc.
  *
- *  chimera is free software: you can redistribute it and/or modify
+ *  zOS is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  chimera is distributed in the hope that it will be useful,
+ *  zOS is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with GRUB. If not, see <http://www.gnu.org/licenses/>.
+ *  along with zOS. If not, see <http://www.gnu.org/licenses/>.
  */
 
-use chimera::hal::boot::bootinfo::BootInfo;
-use chimera::hal::boot::bootinfo::i686::ArchBootInfo;
+use zOS::hal::boot::bootinfo::BootInfo;
+use zOS::hal::boot::bootinfo::i686::ArchBootInfo;
 use crate::multiboot2::*;
 
-const CHIMERA_MEMORY_MAP_TYPE_AVAILABLE: u8 = 0;
-const CHIMERA_MEMORY_MAP_TYPE_RESERVED: u8 = 1;
+const zOS_MEMORY_MAP_TYPE_AVAILABLE: u8 = 0;
+const zOS_MEMORY_MAP_TYPE_RESERVED: u8 = 1;
 
 
 pub fn initialize(bootinfo: &mut BootInfo, archbootinfo: &mut ArchBootInfo, multiboot2_info_address: usize) {
@@ -55,7 +55,7 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, _archbootinfo: &mut ArchB
 
                     if (*multiboot_fb_tag).common.framebuffer_type == 1 {
                         // Type of 1 means RGB, 2 means EGA text mode (unsupported), 0 means indexed color (unsupported)
-                        bootinfo.framebuffer = chimera::hal::boot::bootinfo::Framebuffer {
+                        bootinfo.framebuffer = zOS::hal::boot::bootinfo::Framebuffer {
                             enabled: true,
                             addr: (*multiboot_fb_tag).common.framebuffer_addr as usize,
                             width: (*multiboot_fb_tag).common.framebuffer_width,
@@ -66,7 +66,7 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, _archbootinfo: &mut ArchB
                         };
 
                         // Since we have a framebuffer, initialize the console.
-                        bootinfo.console = chimera::hal::boot::bootinfo::Console {
+                        bootinfo.console = zOS::hal::boot::bootinfo::Console {
                             cursor_pos: 0,
                             line: 0,
                             max_chars: bootinfo.framebuffer.width / 8,
@@ -106,14 +106,14 @@ pub fn parse_multiboot_header(bootinfo: &mut BootInfo, _archbootinfo: &mut ArchB
                         let entry_type;
                         if (*multiboot_mmap_entry).type_ == MULTIBOOT_MEMORY_AVAILABLE {
                             bootinfo.memory_info.available_memory += (*multiboot_mmap_entry).len as usize;
-                            entry_type = CHIMERA_MEMORY_MAP_TYPE_AVAILABLE;
+                            entry_type = zOS_MEMORY_MAP_TYPE_AVAILABLE;
                         }
                         else {
-                            entry_type = CHIMERA_MEMORY_MAP_TYPE_RESERVED;
+                            entry_type = zOS_MEMORY_MAP_TYPE_RESERVED;
                         }
 
                         // Add memory map entry to bootinfo memory map table
-                        bootinfo.memory_info.memory_map[i] = chimera::hal::boot::bootinfo::MemoryMapEntry {
+                        bootinfo.memory_info.memory_map[i] = zOS::hal::boot::bootinfo::MemoryMapEntry {
                             base_address: (*multiboot_mmap_entry).addr as usize,
                             length: (*multiboot_mmap_entry).len as usize,
                             type_: entry_type,

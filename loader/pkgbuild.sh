@@ -14,7 +14,7 @@ clean() {
 
 install() {
     echo
-    #cp target/i686/debug/initializer $CHIMERA_SRC_ROOT/iso/boot/initializer
+    #cp target/i686/debug/initializer $zOS_SRC_ROOT/iso/boot/initializer
 }
 
 # cd to directory of this package, then execute the function specified as an argument

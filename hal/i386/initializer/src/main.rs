@@ -1,20 +1,20 @@
 /*  hal/i386/initializer/src/main.rs - initializer main
  *
- *  chimera  --  Advanced *NIX System
+ *  zOS  --  Advanced *NIX System
  *  Copyright (C) 2024  Free Software Foundation, Inc.
  *
- *  chimera is free software: you can redistribute it and/or modify
+ *  zOS is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  chimera is distributed in the hope that it will be useful,
+ *  zOS is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with GRUB. If not, see <http://www.gnu.org/licenses/>.
+ *  along with zOS. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #![no_std]
@@ -27,9 +27,9 @@ mod initbootinfo;
 mod gdt;
 
 use core::panic::PanicInfo;
-use chimera::hal::boot::bootinfo::BootInfo;
-use chimera::hal::boot::bootinfo::i686::ArchBootInfo;
-use chimera::log::*;
+use zOS::hal::boot::bootinfo::BootInfo;
+use zOS::hal::boot::bootinfo::i686::ArchBootInfo;
+use zOS::log::*;
 
 
 #[no_mangle]
@@ -107,6 +107,6 @@ pub extern "C" fn main(magic: u32, multiboot2_info_address: usize) {
 fn panic(_info: &PanicInfo) -> ! {
     use debugtools::*;
     serial_log!("{}", _info);
-    unsafe { chimera::debug::debugtools::set_eax(0xBadDeed); }
+    unsafe { zOS::debug::debugtools::set_eax(0xBadDeed); }
     loop {}
 }

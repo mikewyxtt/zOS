@@ -3,7 +3,7 @@
 version = 3
 
 [[package]]
-name = "chimera"
+name = "zOS"
 version = "0.0.0"
 dependencies = [
  "debugtools",
@@ -26,7 +26,7 @@ version = "0.0.0"
 name = "initializer"
 version = "0.1.0"
 dependencies = [
- "chimera",
+ "zOS",
  "debugtools",
 ]
 

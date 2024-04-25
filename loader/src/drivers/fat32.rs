@@ -177,6 +177,6 @@ pub fn read() {
         _ => {}
     }
 
-    std::fs::File::open(path)
+    // std::fs::File::open(path)
 }
 

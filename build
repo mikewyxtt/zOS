@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 
-export CHIMERA_SRC_ROOT=$PWD
+export zOS_SRC_ROOT=$PWD
 
 # Will eventually create a livecd ISO, but for now it just creates a hard disk image
 livecd() {
-	rm -Rf /tmp/chimera_build
-	mkdir -p /tmp/chimera_build/rootfs /tmp/chimera_build/efi_sys RELEASE
+	rm -Rf /tmp/zOS_build
+	mkdir -p /tmp/zOS_build/rootfs /tmp/zOS_build/efi_sys RELEASE
 
 	# Create 1.5GB disk image (307200 sectors)
-	dd if=/dev/zero of=/tmp/chimera_build/hdd.img bs=512 count=3072000
+	dd if=/dev/zero of=/tmp/zOS_build/hdd.img bs=512 count=3072000
 	
 	# Partition the disk image, then split it into two images for easy transfering of files
 	# The following is literally mimicking the keystrokes needed to partition the disk using fdisk
-	fdisk /tmp/chimera_build/hdd.img << EOF
+	fdisk /tmp/zOS_build/hdd.img << EOF
 g
 n
 1
@@ -32,8 +32,8 @@ EOF
 	########################################################################
 	## Split it into two images so we can work with the partitions easily ##
 	########################################################################
-	dd if=/tmp/chimera_build/hdd.img of=/tmp/chimera_build/efi_sys.img bs=512 skip=2048 count=1048576
-	dd if=/tmp/chimera_build/hdd.img of=/tmp/chimera_build/rootfs.img bs=512 skip=1050624 count=2021343
+	dd if=/tmp/zOS_build/hdd.img of=/tmp/zOS_build/efi_sys.img bs=512 skip=2048 count=1048576
+	dd if=/tmp/zOS_build/hdd.img of=/tmp/zOS_build/rootfs.img bs=512 skip=1050624 count=2021343
 
 	################
 	## Copy files ##
@@ -43,7 +43,7 @@ EOF
 	# Here is where we would run 'cargo install' for every subproject in the system, then we can transfer the files to the rootfs
 
 	# We format the partition and copy files onto it in the same go
-	mkfs.ext2 -d /tmp/chimera_build/rootfs /tmp/chimera_build/rootfs.img
+	mkfs.ext2 -d /tmp/zOS_build/rootfs /tmp/zOS_build/rootfs.img
 
 
 	########################
@@ -53,20 +53,20 @@ EOF
 
 
 	# Next we format the EFI system partition as FAT32 and copy over the UEFI version of 'loader'
-	mkdosfs -F 32 /tmp/chimera_build/efi_sys.img
-	mmd -i /tmp/chimera_build/efi_sys.img ::/EFI
-	mmd -i /tmp/chimera_build/efi_sys.img ::/EFI/BOOT
-	mcopy -i /tmp/chimera_build/efi_sys.img loader/target/x86_64-unknown-uefi/debug/loader.efi ::/EFI/BOOT/BOOTX64.EFI
+	mkdosfs -F 32 /tmp/zOS_build/efi_sys.img
+	mmd -i /tmp/zOS_build/efi_sys.img ::/EFI
+	mmd -i /tmp/zOS_build/efi_sys.img ::/EFI/BOOT
+	mcopy -i /tmp/zOS_build/efi_sys.img loader/target/x86_64-unknown-uefi/debug/loader.efi ::/EFI/BOOT/BOOTX64.EFI
 
 
 
 	################################################
 	## Combine the images back into one, clean up ##
 	################################################
-	dd if=/tmp/chimera_build/efi_sys.img of=/tmp/chimera_build/hdd.img bs=512 seek=2048 count=1048576 conv=notrunc
-	dd if=/tmp/chimera_build/rootfs.img of=/tmp/chimera_build/hdd.img bs=512 seek=1050624 count=2021343 conv=notrunc
-	mv /tmp/chimera_build/hdd.img RELEASE/CHIMERA-RELEASE-0.1.0-LIVE-HDD.img
-	rm -Rf /tmp/chimera_build
+	dd if=/tmp/zOS_build/efi_sys.img of=/tmp/zOS_build/hdd.img bs=512 seek=2048 count=1048576 conv=notrunc
+	dd if=/tmp/zOS_build/rootfs.img of=/tmp/zOS_build/hdd.img bs=512 seek=1050624 count=2021343 conv=notrunc
+	mv /tmp/zOS_build/hdd.img RELEASE/zOS-RELEASE-0.1.0-LIVE-HDD.img
+	rm -Rf /tmp/zOS_build
 }
 
 
