@@ -7,17 +7,17 @@ export zOS_VERSION="0.0.1"
 
 APPS=("loader")
 
-# Will eventually create a livecd ISO, but for now it just creates a hard disk image
-livecd() {
+# Creates a memstick image
+memstick() {
 	rm -Rf /tmp/zOS_build
 	mkdir -p /tmp/zOS_build/rootfs /tmp/zOS_build/efi_sys RELEASE
 
 	# Create 1.5GB disk image (307200 sectors)
-	dd if=/dev/zero of=/tmp/zOS_build/hdd.img bs=512 count=3072000
+	dd if=/dev/zero of=/tmp/zOS_build/memstick.img bs=512 count=3072000
 	
 	# Partition the disk image, then split it into two images for easy transfering of files
 	# The following is literally mimicking the keystrokes needed to partition the disk using fdisk
-	fdisk /tmp/zOS_build/hdd.img << EOF
+	fdisk /tmp/zOS_build/memstick.img << EOF
 g
 n
 1
@@ -37,8 +37,8 @@ EOF
 	########################################################################
 	## Split it into two images so we can work with the partitions easily ##
 	########################################################################
-	dd if=/tmp/zOS_build/hdd.img of=/tmp/zOS_build/efi_sys.img bs=512 skip=2048 count=1048576
-	dd if=/tmp/zOS_build/hdd.img of=/tmp/zOS_build/rootfs.img bs=512 skip=1050624 count=2021343
+	dd if=/tmp/zOS_build/memstick.img of=/tmp/zOS_build/efi_sys.img bs=512 skip=2048 count=1048576
+	dd if=/tmp/zOS_build/memstick.img of=/tmp/zOS_build/rootfs.img bs=512 skip=1050624 count=2021343
 
 	################
 	## Copy files ##
@@ -68,9 +68,9 @@ EOF
 	################################################
 	## Combine the images back into one, clean up ##
 	################################################
-	dd if=/tmp/zOS_build/efi_sys.img of=/tmp/zOS_build/hdd.img bs=512 seek=2048 count=1048576 conv=notrunc
-	dd if=/tmp/zOS_build/rootfs.img of=/tmp/zOS_build/hdd.img bs=512 seek=1050624 count=2021343 conv=notrunc
-	mv /tmp/zOS_build/hdd.img RELEASE/zOS-RELEASE-0.1.0-LIVE-HDD.img
+	dd if=/tmp/zOS_build/efi_sys.img of=/tmp/zOS_build/memstick.img bs=512 seek=2048 count=1048576 conv=notrunc
+	dd if=/tmp/zOS_build/rootfs.img of=/tmp/zOS_build/memstick.img bs=512 seek=1050624 count=2021343 conv=notrunc
+	mv /tmp/zOS_build/memstick.img RELEASE/zOS-RELEASE-0.1.0-LIVE-MEMSTICK.img
 	rm -Rf /tmp/zOS_build
 }
 
@@ -87,7 +87,7 @@ clean() {
 }
 
 release() {
-	livecd
+	memstick
 }
 
 usage() {
