@@ -19,4 +19,5 @@
 
 #![no_std]
 
-mod bootinfo;
+pub mod bootinfo;
+pub mod sysprint;
