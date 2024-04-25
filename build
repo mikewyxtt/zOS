@@ -74,7 +74,7 @@ EOF
 	rm -Rf /tmp/zOS_build
 }
 
-all() {
+build() {
 	for app in "${APPS[@]}"; do
 		sh $app/pkgbuild.sh build
 	done
@@ -90,5 +90,25 @@ release() {
 	livecd
 }
 
+usage() {
+	echo "USAGE: ./build [clean|release]"
+	exit 1
+}
 
-"$@"
+
+if [ $# -eq 0 ]; then
+	build
+
+elif [ $# -eq 1 ]; then
+	if [ "$1" = "clean" ]; then
+		clean
+
+	elif [ "$1" = "release" ]; then
+		release
+	else
+		echo "ERR: Invalid option: $1"
+		usage
+	fi
+else
+	usage
+fi
