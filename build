@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 
 set -e
-
+export TARGET_ARCH=x86_64-unknown-none
 export zOS_SRC_ROOT=$PWD
 export zOS_VERSION="0.0.1"
 
-APPS=("base/loader")
+APPS=("base/loader" "sys/zxt/drivers/hello")
+
 
 # Creates a memstick image
 memstick() {
