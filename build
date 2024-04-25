@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
+set -e
+
 export zOS_SRC_ROOT=$PWD
+export zOS_VERSION="0.0.1"
+
+APPS=("loader")
 
 # Will eventually create a livecd ISO, but for now it just creates a hard disk image
 livecd() {
@@ -69,15 +74,16 @@ EOF
 	rm -Rf /tmp/zOS_build
 }
 
-
 all() {
-	echo "Building all..."
-#	sh hal/i386/initializer/pkgbuild.sh build
-	sh loader/pkgbuild.sh build
+	for app in "${APPS[@]}"; do
+		sh $app/pkgbuild.sh build
+	done
 }
 
 clean() {
-	sh loader/pkgbuild.sh clean
+	for app in "${APPS[@]}"; do
+		sh $app/pkgbuild.sh clean
+	done
 }
 
 release() {
