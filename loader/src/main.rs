@@ -82,7 +82,7 @@ struct BootInfo {
     pub size:       usize,
 
     pub arch:       AMD64BootInfo,
-    pub end:        u8,
+    pub end:        u16,
 }
 
 impl BootInfo {
