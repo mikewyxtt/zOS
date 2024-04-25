@@ -62,7 +62,7 @@ EOF
 	mkdosfs -F 32 /tmp/zOS_build/efi_sys.img
 	mmd -i /tmp/zOS_build/efi_sys.img ::/EFI
 	mmd -i /tmp/zOS_build/efi_sys.img ::/EFI/BOOT
-	mcopy -i /tmp/zOS_build/efi_sys.img loader/target/x86_64-unknown-uefi/debug/loader.efi ::/EFI/BOOT/BOOTX64.EFI
+	mcopy -i /tmp/zOS_build/efi_sys.img base/loader/target/x86_64-unknown-uefi/debug/loader.efi ::/EFI/BOOT/BOOTX64.EFI
 
 
 
