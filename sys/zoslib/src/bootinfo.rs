@@ -37,7 +37,7 @@ pub struct MemoryMap {
 
 
 #[repr(C)]
-pub struct Extension {
+pub struct SysExtension {
     pub name:       [char; 24],
     pub path:       [char; 100],
     pub addr:       usize,
@@ -47,7 +47,7 @@ pub struct Extension {
 
 #[repr(C)]
 pub struct FBInfo {
-    pub enabled:     bool,
+    pub present:     bool,
     pub addr:        usize,
     pub width:       u32,
     pub height:      u32,
@@ -66,7 +66,7 @@ pub struct BootInfo {
     pub cmdline:        [char; MAX_CMDLINE_SIZE],               // Boot command line
     pub fb_info:        FBInfo,
     pub memory_map:     [MemoryMap; MAX_MEMORY_MAP_ENTRIES],
-    pub extensions:     [Extension; MAX_EXTENSION_COUNT],
+    pub extensions:     [SysExtension; MAX_EXTENSION_COUNT],
     pub end:            u16,
 }
 
