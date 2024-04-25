@@ -10,6 +10,7 @@ Notable design choices:
 ```sh
 rustup component add rust-src
 rustup target add x86_64-unknown-uefi
+rustup target add x86_64-unknown-none
 
 
 ```
