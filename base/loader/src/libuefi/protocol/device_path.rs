@@ -52,5 +52,14 @@ pub struct ACPIDevicePath {
     pub subtype: u8,
     pub length: [u8; 2],
     pub hid: u32,
-    pub uid: u32
+    pub uid: u32,
+}
+
+#[repr(C, packed)]
+pub struct PCIDevicePath {
+    pub _type: u8,
+    pub subtype: u8,
+    pub length: [u8; 2],
+    pub function: u8,
+    pub device: u8,
 }
