@@ -42,7 +42,9 @@ extern "win64" fn efi_main(efi_image_handle: *const usize, efi_system_table: *co
     disk::init();
 
 
-    println!("Hello, World!");
+    ldrprintln!("Hello, World!");
+
+    // unsafe { drivers::uefi::disk::read_bytes_raw("", 0, 0, core::ptr::null_mut()) };
 
 
     loop {}
@@ -52,14 +54,14 @@ extern "win64" fn efi_main(efi_image_handle: *const usize, efi_system_table: *co
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    println!("{}", _info);
+    ldrprintln!("{}", _info);
     loop {}
 }
 
 
 #[cfg(test)]
 pub fn test_runner(tests: &[&dyn Fn()]) {
-    println!("Running {} tests", tests.len());
+    ldrprintln!("Running {} tests", tests.len());
     for test in tests {
         test();
     }
