@@ -5,6 +5,14 @@ Notable design choices:
 	- Networking Kernel, message passing utilizes packet based system similar to TCP/IP
 	- Hardware Abstraction Layer to ensure easy portability
 
+# Running in qemu
+```sh
+qemu-system-x86_64  -bios <path-to-ovmf> \
+					-drive if=none,id=stick,format=raw,file=RELEASE/<zOS Release IMG> \
+					-device nec-usb-xhci,id=xhci \
+					-device usb-storage,bus=xhci.0,drive=stick
+```
+
 
 # Setting up Rust
 ```sh
