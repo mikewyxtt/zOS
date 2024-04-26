@@ -22,15 +22,15 @@ use core::fmt::{Write, Error, self};
 
 /// Prints a formatted string with NO trailing newline to console output.
 #[macro_export]
-macro_rules! print {
-    ($($arg:tt)*) => { ($crate::console::_print(format_args!($($arg)*))); }
+macro_rules! ldrprint {
+    ($($arg:tt)*) => { ($crate::console::_ldrprint(format_args!($($arg)*))); }
 }
 
 
 /// Prints a formatted string with a trailing newline to console output.
 #[macro_export]
-macro_rules! println {
-    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+macro_rules! ldrprintln {
+    ($($arg:tt)*) => ($crate::ldrprint!("{}\n", format_args!($($arg)*)));
 }
 
 
@@ -44,7 +44,7 @@ pub fn clear() {
 
 /// Print function that's used by the print macros
 #[doc(hidden)]
-pub fn _print(args: fmt::Arguments) {
+pub fn _ldrprint(args: fmt::Arguments) {
     let mut writer = Writer::new();
     writer.write_fmt(args).unwrap();
 }
