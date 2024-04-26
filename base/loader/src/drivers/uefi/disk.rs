@@ -18,9 +18,8 @@
  */
 
 use core::{mem::size_of, ptr};
-
 use alloc::{string::{String, ToString}, vec, vec::Vec};
-use crate::{disk::BlockDevice, libuefi::{bootservices::{BootServices, LocateSearchType}, protocol::{block_io::BlockIOProtocol, device_path::{ACPIDevicePath, DevicePathProtocol}}}};
+use crate::{disk::BlockDevice, libuefi::{bootservices::{BootServices, LocateSearchType}, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, PCIDevicePath}}}};
 
 static mut EFI_DEVICE_INFO: Vec<EFIDeviceInfo> = Vec::new();
 
@@ -59,7 +58,7 @@ pub fn probe_disks() -> Vec<BlockDevice> {
     // Iterate through the handles, parse the device path and add each disks to a vector
     let mut device_entries: Vec<BlockDevice> = Vec::new();
     let mut efi_entries: Vec<EFIDeviceInfo> = Vec::new();
-    let mut hid = 0;
+    let mut pci_deviceid = 0;
 
 
     for i in 0..handles.len() {
@@ -69,23 +68,14 @@ pub fn probe_disks() -> Vec<BlockDevice> {
         
         let mut node: &DevicePathProtocol = unsafe { &mut (**device_path_protocol_ptr)};
         
-
+        
         // Traverse the device path
         let mut new_device = false;
         // EFI Device path structure: ACPI->Hardware Device->Messaging Device->Media Device (if applicable)
         loop {
             match (node._type, node.subtype, node.length[0] + node.length[1]) {
                 /* ACPI Device Path Node */
-                (0x02, 1, 12) => {
-                    #[allow(invalid_reference_casting)]
-                    let acpi: &ACPIDevicePath = unsafe { &*((node as *const DevicePathProtocol).cast()) };
-
-                    // new device?
-                    if hid != acpi.hid {
-                        new_device = true;
-                        hid = acpi.hid;
-                    }
-                }
+                (0x02, 1, 12) => {}
 
                 _ => {}
             }
@@ -95,23 +85,59 @@ pub fn probe_disks() -> Vec<BlockDevice> {
                 node = node.next();
                 match (node._type, node.subtype, node.length[0] + node.length[1]) {
                     // PCI Device path
-                    (0x01, 0x01, 0x06) => { /* Do nothing */ }
+                    (0x01, 0x01, 0x06) => {
+                        #[allow(invalid_reference_casting)]
+                        let pci: &PCIDevicePath = unsafe { &*((node as *const DevicePathProtocol).cast()) };
+
+                        // new device?
+                        if pci_deviceid != pci.device {
+                            new_device = true;
+                            pci_deviceid = pci.device;
+                        }
+                    }
 
                     _ => { panic!("No PCI bus found for storage device."); }
                 }
-
+                
                 /* Messaging Device Paths */
                 loop {
                     node = node.next();
                     match (node._type, node.subtype, node.length[0] + node.length[1]) {
+                        // ATAPI device path node
+                        (3, 1, 8) => {
+                            if new_device {
+                                // create new device
+                                ldrprintln!("ATAPI device found");
+                                let name = crate::disk::name_device(false, false, &device_entries);
+                                device_entries.push(BlockDevice::new(name.clone(), false, false, BLOCK_SIZE, read_bytes_raw));
+                                efi_entries.push(EFIDeviceInfo::new(name.clone(), handles[i] as *const usize));
+                                ldrprintln!("Created block descriptor: {} with handle: 0x{:02X}", device_entries.last().unwrap().name, handles[i]);
+                                break;
+                            }
+                        }
+
                         // SATA device path node
                         (0x03, 18, 10) => {
                             if new_device {
                                 // create new device
+                                ldrprintln!("SATA device found");
                                 let name = crate::disk::name_device(false, false, &device_entries);
                                 device_entries.push(BlockDevice::new(name.clone(), false, false, BLOCK_SIZE, read_bytes_raw));
                                 efi_entries.push(EFIDeviceInfo::new(name.clone(), handles[i] as *const usize));
-                                println!("Created block descriptor: {} with handle: 0x{:02X}", device_entries.last().unwrap().name, handles[i]);
+                                ldrprintln!("Created block descriptor: {} with handle: 0x{:02X}", device_entries.last().unwrap().name, handles[i]);
+                                break;
+                            }
+                        }
+
+                        // USB device path node
+                        (3, 5, 6) => {
+                            if new_device {
+                                // create new device
+                                ldrprintln!("USB device found");
+                                let name = crate::disk::name_device(false, false, &device_entries);
+                                device_entries.push(BlockDevice::new(name.clone(), false, false, BLOCK_SIZE, read_bytes_raw));
+                                efi_entries.push(EFIDeviceInfo::new(name.clone(), handles[i] as *const usize));
+                                ldrprintln!("Created block descriptor: {} with handle: 0x{:02X}", device_entries.last().unwrap().name, handles[i]);
                                 break;
                             }
                         }
@@ -120,7 +146,7 @@ pub fn probe_disks() -> Vec<BlockDevice> {
                         (0x7F, 0xFF | 0x01, 4) => { break; }
 
                         _ => { 
-                            println!("Warning: Unknown storage device detected. Ignoring.");
+                            ldrprintln!("Warning: Unknown storage device detected. Ignoring.");
                             break;
                         }
                     }
@@ -136,7 +162,7 @@ pub fn probe_disks() -> Vec<BlockDevice> {
                                 let name = crate::disk::name_device(false, true,&device_entries);
                                 device_entries.push(BlockDevice::new(name.clone(), true, false, BLOCK_SIZE, read_bytes_raw));
                                 efi_entries.push(EFIDeviceInfo::new(name.clone(), handles[i] as *const usize));
-                                println!("Created block descriptor: {} with handle: 0x{:02X}", device_entries.last().unwrap().name, handles[i]);
+                                ldrprintln!("Created block descriptor: {} with handle: 0x{:02X}", device_entries.last().unwrap().name, handles[i]);
                             }
 
                             /* Last node / End of device path */
@@ -153,6 +179,8 @@ pub fn probe_disks() -> Vec<BlockDevice> {
             break;
         }
     }
+
+    assert_ne!(efi_entries.is_empty(), true);
     unsafe { EFI_DEVICE_INFO = efi_entries; }
     device_entries
 }
@@ -161,8 +189,8 @@ pub fn probe_disks() -> Vec<BlockDevice> {
 
 
 
-
 unsafe fn read_bytes_raw(dev: &str, lba: u64, count: usize, buffer: *mut u8) -> Result<(), String> {
+
     let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::dangling_mut();
     BootServices::handle_protocol(lookup_handle(dev.to_string()), &(BlockIOProtocol::guid()), block_io_protocol.cast());
     let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
@@ -189,6 +217,7 @@ unsafe fn read_bytes_raw(dev: &str, lba: u64, count: usize, buffer: *mut u8) -> 
         }
     }
 }
+
 
 
 
