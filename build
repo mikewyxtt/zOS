@@ -71,7 +71,7 @@ EOF
 	################################################
 	dd if=/tmp/zOS_build/efi_sys.img of=/tmp/zOS_build/memstick.img bs=512 seek=2048 count=1048576 conv=notrunc
 	dd if=/tmp/zOS_build/rootfs.img of=/tmp/zOS_build/memstick.img bs=512 seek=1050624 count=2021343 conv=notrunc
-	mv /tmp/zOS_build/memstick.img RELEASE/zOS-RELEASE-0.1.0-LIVE-MEMSTICK.img
+	mv /tmp/zOS_build/memstick.img RELEASE/zOS-RELEASE-"$zOS_VERSION"-LIVE-MEMSTICK.img
 	rm -Rf /tmp/zOS_build
 }
 
