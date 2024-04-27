@@ -5,19 +5,20 @@ export TARGET_ARCH=x86_64-unknown-none
 export zOS_SRC_ROOT=$PWD
 export zOS_VERSION="0.0.1"
 
-APPS=("base/loader" "sys/zxt/drivers/hello")
+APPS=("base/loader" \
+	"sys/zxt/drivers/hello")
 
 
 # Creates a memstick image
 memstick() {
+	zos_xfs_parttype=ab37caea-8669-47e9-9373-425e6de819e3
 	rm -Rf /tmp/zOS_build
 	mkdir -p /tmp/zOS_build/rootfs /tmp/zOS_build/efi_sys RELEASE
 
-	# Create 1.5GB disk image (307200 sectors)
+	# Create the disk image
 	dd if=/dev/zero of=/tmp/zOS_build/memstick.img bs=512 count=3072000
-	
-	# Partition the disk image, then split it into two images for easy transfering of files
-	# The following is literally mimicking the keystrokes needed to partition the disk using fdisk
+
+	# Partition the disk image. The following is literally mimicking the keystrokes needed to partition the disk using fdisk
 	fdisk /tmp/zOS_build/memstick.img << EOF
 g
 n
@@ -26,11 +27,13 @@ n
 +512M
 t
 1
-
 n
 2
-1050624
-3071966
+
+
+t
+2
+$zos_xfs_parttype
 w
 EOF
 
@@ -45,8 +48,7 @@ EOF
 	## Copy files ##
 	################
 	echo "Copying files..."
-
-	# Here is where we would run 'cargo install' for every subproject in the system, then we can transfer the files to the rootfs
+	build_install /tmp/zOS_build/rootfs
 
 	# We format the partition and copy files onto it in the same go
 	mkfs.ext2 -d /tmp/zOS_build/rootfs /tmp/zOS_build/rootfs.img
@@ -81,6 +83,12 @@ build() {
 	done
 }
 
+build_install() {
+	for app in "${APPS[@]}"; do
+		sh $app/pkgbuild.sh build_install $1
+	done
+}
+
 clean() {
 	for app in "${APPS[@]}"; do
 		sh $app/pkgbuild.sh clean
@@ -101,7 +109,10 @@ if [ $# -eq 0 ]; then
 	build
 
 elif [ $# -eq 1 ]; then
-	if [ "$1" = "clean" ]; then
+	if [ "$1" = "install" ]; then
+		build_install
+
+	elif [ "$1" = "clean" ]; then
 		clean
 
 	elif [ "$1" = "release" ]; then
