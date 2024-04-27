@@ -12,6 +12,7 @@ APPS=("base/loader" \
 # Creates a memstick image
 memstick() {
 	zos_xfs_parttype=ab37caea-8669-47e9-9373-425e6de819e3
+	
 	rm -Rf /tmp/zOS_build
 	mkdir -p /tmp/zOS_build/rootfs /tmp/zOS_build/efi_sys RELEASE
 
