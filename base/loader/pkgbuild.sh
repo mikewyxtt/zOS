@@ -12,9 +12,8 @@ clean() {
     cargo clean
 }
 
-install() {
-    echo
-    #cp target/i686/debug/initializer $zOS_SRC_ROOT/iso/boot/initializer
+build_install() {
+    return
 }
 
 # cd to directory of this package, then execute the function specified as an argument
