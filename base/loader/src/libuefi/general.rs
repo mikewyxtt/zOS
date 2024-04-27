@@ -50,7 +50,7 @@ impl GUID {
 
     pub fn as_string(&self) -> String {
         format!("{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
-                            u32::from_le(self.data1), // UEFI spec states the first 3 values are encoded as little endian
+                            u32::from_le(self.data1), // UEFI spec states the first 3 values are encoded as little endian regardless of arch
                             u16::from_le(self.data2),
                             u16::from_le(self.data3),
                             self.data4[0],
