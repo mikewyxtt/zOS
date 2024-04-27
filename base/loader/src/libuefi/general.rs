@@ -20,6 +20,8 @@
 #![allow(dead_code)]
 
 use core::{ffi::c_void, sync::atomic::{AtomicPtr, Ordering}};
+use alloc::{format, string::String};
+
 use super::bootservices::BootServices;
 use super::protocol::simple_text_output::SimpleTextOutputProtocol;
 
@@ -28,6 +30,7 @@ pub static IMAGE_HANDLE: AtomicPtr<usize> = AtomicPtr::new(core::ptr::null_mut()
 
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct GUID {
     data1: u32,
     data2: u16,
@@ -43,6 +46,21 @@ impl GUID {
             data3,
             data4
         }
+    }
+
+    pub fn as_string(&self) -> String {
+        format!("{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
+                            u32::from_le(self.data1), // UEFI spec states the first 3 values are encoded as little endian
+                            u16::from_le(self.data2),
+                            u16::from_le(self.data3),
+                            self.data4[0],
+                            self.data4[1],
+                            self.data4[2],
+                            self.data4[3],
+                            self.data4[4],
+                            self.data4[5],
+                            self.data4[6],
+                            self.data4[7])
     }
 }
 
