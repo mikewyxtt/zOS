@@ -19,6 +19,7 @@
 
 #![allow(dead_code)]
 
+
 use super::super::GUID;
 
 
@@ -62,4 +63,17 @@ pub struct PCIDevicePath {
     pub length: [u8; 2],
     pub function: u8,
     pub device: u8,
+}
+
+#[repr(C, packed)]
+pub struct HardDriveDevicePath {
+    pub _type: u8,
+    pub subtype: u8,
+    pub length: [u8; 2],
+    pub partition_number: u32,
+    pub partition_start: u64,
+    pub partition_size: u64,
+    pub partition_sig: GUID,
+    pub partition_format: u8,
+    pub sig_type: u8,
 }
