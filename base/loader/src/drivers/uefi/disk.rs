@@ -63,10 +63,10 @@ pub fn probe_disks() -> Vec<BlockDevice> {
 
     for i in 0..handles.len() {
         // Get the device path protocol (First node in the path)
-        let device_path_protocol_ptr: *mut *mut DevicePathProtocol = core::ptr::dangling_mut();
-        BootServices::handle_protocol(handles[i] as *const usize, &(DevicePathProtocol::guid()), device_path_protocol_ptr.cast());
+        let device_path_protocol: &mut DevicePathProtocol = core::ptr::dangling_mut();
+        BootServices::handle_protocol(handles[i] as *const usize, &(DevicePathProtocol::guid()), (&mut device_path_protocol as *mut *mut DevicePathProtocol));
         
-        let mut node: &DevicePathProtocol = unsafe { &mut (**device_path_protocol_ptr)};
+        let mut node: &DevicePathProtocol = unsafe { &mut (**device_path_protocol)};
         
         
         // Traverse the device path
