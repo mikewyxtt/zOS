@@ -60,12 +60,18 @@ EOF
 	########################
 	echo "Installing bootloader..."
 
+	# Create loader.cfg
+	rootfs_guid=$(sgdisk -i 2 /tmp/zOS_build/memstick.img | grep -oP 'Partition unique GUID: \K\S+')
+	echo "root=\"$rootfs_guid\"" >> /tmp/zOS_build/loader.cfg
+	
 
 	# Next we format the EFI system partition as FAT32 and copy over the UEFI version of 'loader'
 	mkdosfs -F 32 /tmp/zOS_build/efi_sys.img
 	mmd -i /tmp/zOS_build/efi_sys.img ::/EFI
 	mmd -i /tmp/zOS_build/efi_sys.img ::/EFI/BOOT
+	mmd -i /tmp/zOS_build/efi_sys.img ::/EFI/BOOT/ZOS
 	mcopy -i /tmp/zOS_build/efi_sys.img base/loader/target/x86_64-unknown-uefi/debug/loader.efi ::/EFI/BOOT/BOOTX64.EFI
+	mcopy -i /tmp/zOS_build/efi_sys.img /tmp/zOS_build/loader.cfg ::/EFI/BOOT/ZOS/LOADER.CFG
 
 
 
