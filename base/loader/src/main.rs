@@ -40,6 +40,7 @@ extern "win64" fn efi_main(efi_image_handle: *const usize, efi_system_table: *co
     libuefi::init(efi_image_handle, efi_system_table);
     console::clear();
     disk::init();
+    drivers::uefi::disk::getcfg();
 
 
     ldrprintln!("Hello, World!");
