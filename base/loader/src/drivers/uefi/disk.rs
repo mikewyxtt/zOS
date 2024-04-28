@@ -19,7 +19,7 @@
 
 use core::{mem::size_of, ptr};
 use alloc::{string::{String, ToString}, vec, vec::Vec};
-use crate::libuefi::{bootservices::{BootServices, LocateSearchType}, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}, file::File, loaded_image::LoadedImageProtocol}, GUID};
+use crate::libuefi::{bootservices::{BootServices, LocateSearchType}, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}, file::{File, FileInfo}, filesystem::SimpleFilesystem, loaded_image::LoadedImageProtocol}, GUID};
 
 
 static mut PARTITION_ENTRIES: Vec<PartitionEntry> = Vec::new();
@@ -72,6 +72,7 @@ pub fn probe_disks() {
                     let guid = hddp.partition_sig;
             
                     partition_entries.push(PartitionEntry::new(guid, handles[i] as *const usize));
+                    ldrprintln!("Found partition with GUID: {}", guid.as_string());
                 }
 
                 _ => {}
@@ -143,23 +144,35 @@ pub fn getcfg() {
     BootServices::handle_protocol(crate::libuefi::IMAGE_HANDLE.load(core::sync::atomic::Ordering::SeqCst), &(LoadedImageProtocol::guid()), loaded_image_protocol.cast());
     let loaded_image_protocol: &LoadedImageProtocol = unsafe { &mut (**loaded_image_protocol)};
 
-    let file_protocol: *mut *mut File = core::ptr::dangling_mut();
-    BootServices::handle_protocol(loaded_image_protocol.device_handle, &(LoadedImageProtocol::guid()), file_protocol.cast());
+    let filesys_protocol: *mut *mut SimpleFilesystem = core::ptr::dangling_mut();
+    BootServices::handle_protocol(loaded_image_protocol.device_handle, &(SimpleFilesystem::guid()), filesys_protocol.cast());
+    let filesys_protocol: &SimpleFilesystem = unsafe { &mut (**filesys_protocol) };
+
+    let file = filesys_protocol.open_volume();
+
+    // let file = {
+    //     let loaded_image_protocol: *mut *mut LoadedImageProtocol = core::ptr::dangling_mut();
+    //     BootServices::handle_protocol(crate::libuefi::IMAGE_HANDLE.load(core::sync::atomic::Ordering::SeqCst), &(LoadedImageProtocol::guid()), loaded_image_protocol.cast());
+    //     let loaded_image_protocol: &LoadedImageProtocol = unsafe { &mut (**loaded_image_protocol)};
+
+    //     let filesys_protocol: *mut *mut SimpleFilesystem = core::ptr::dangling_mut();
+    //     BootServices::handle_protocol(loaded_image_protocol.device_handle, &(SimpleFilesystem::guid()), filesys_protocol.cast());
+    //     let filesys_protocol: &SimpleFilesystem = unsafe { &mut (**filesys_protocol)};
+
+    //     filesys_protocol.open_volume()
+    // };
+    
+
+    let file = file.open("\\EFI\\BOOT\\ZOS\\LOADER.CFG\0", 1, None);
+    let info = file.get_info(FileInfo::guid());
+    ldrprintln!("file size: {} bytes", info.file_size);
+
+    let contents = file.read();
+
+    for b in contents {
+        let c = b as char;
+        ldrprint!("{}", c);
+    }
+    ldrprint!("\n");
+
 }
-
-
-
-// /// Returns the name of the slice containing the EFI System Partition
-// pub fn find_efi_slice() -> Result<&'static str, String> {
-//     let loaded_image_protocol: *mut *mut LoadedImageProtocol = core::ptr::dangling_mut();
-//     BootServices::handle_protocol(crate::libuefi::IMAGE_HANDLE.load(core::sync::atomic::Ordering::SeqCst), &(LoadedImageProtocol::guid()), loaded_image_protocol.cast());
-//     let loaded_image_protocol: &LoadedImageProtocol = unsafe { &mut (**loaded_image_protocol)};
-
-//     for dev in unsafe { EFI_BLOCK_DEVICES.iter() } {
-//         if dev.handle == loaded_image_protocol.device_handle {
-//             return Ok(dev.name.as_str())
-//         }
-//     }
-
-//     Err("Could not find EFI System Partition slice.".to_string())
-// }
