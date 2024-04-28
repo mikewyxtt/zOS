@@ -24,17 +24,18 @@ use alloc::vec::Vec;
 use crate::libuefi::GUID;
 
 
+
 #[repr(C)]
 pub struct File {
     pub revision:       u64,
-    _open:              unsafe extern "C" fn(&Self, &&mut Self, *const u16, u64, u64),
+    _open:              unsafe extern "C" fn(&Self, &mut &mut Self, *const u16, u64, u64) -> u32,
     _close:             unsafe extern "C" fn(),
     _delete:            unsafe extern "C" fn(),
-    _read:              unsafe extern "C" fn(&Self, usize, *const ()),
+    _read:              unsafe extern "C" fn(&Self, &usize, *const u8) -> u32,
     _write:             unsafe extern "C" fn(),
     _get_position:      unsafe extern "C" fn(),
     _set_position:      unsafe extern "C" fn(),
-    _get_info:          unsafe extern "C" fn(),
+    _get_info:          unsafe extern "C" fn(&Self, &GUID, &usize, *const usize) -> u32,
     _set_info:          unsafe extern "C" fn(),
     _flush:             unsafe extern "C" fn(),
     _open_ex:           unsafe extern "C" fn(),
@@ -43,39 +44,71 @@ pub struct File {
     _flush_ex:          unsafe extern "C" fn(),
 }
 
+
 impl File {
     pub fn open(&self, file: &str, open_mode: u64, attr: Option<u64>) -> &Self {
-        // let f: *mut *mut File = core::ptr::dangling_mut();
-        let f: &mut File = unsafe { &mut(*core::ptr::dangling_mut()) };
-        
-        unsafe { 
-            match attr {
-                None => { (self._open)(&self, &f, encode_utf16(file).as_ptr(), open_mode, 0); }
+        assert_eq!(attr, None, "File creation is not supported in this UEFI implementation.");
 
-                _ => { panic!("File creation is not supported in this UEFI implementation."); }
+        let f: &mut &mut File = unsafe { &mut(*core::ptr::dangling_mut()) };
+        
+        let utf16_str: Vec<u16> = file.encode_utf16().collect();
+
+        unsafe {
+            let status = (self._open)(&self, f, utf16_str.as_ptr(), open_mode, 0);
+            match status {
+                0 => { return &(**f); }
+
+                _ => { panic!("EFI ERROR: {}", status); }
             }
-            
-            f
         }
     }
 
     /// Reads the entire file into a Vec<u8>
     pub fn read(&self) -> Vec<u8> {
-        let buffer_size = 100;
+        let buffer_size = self.get_info(FileInfo::guid()).file_size as usize;
+        let buff: Vec<u8> = vec![0; buffer_size];
 
-        let buff: Vec<u8> = vec![0; 100];
-        unsafe { (self._read)(self, buffer_size, buff.as_ptr().cast()); }
-        buff
+        let result = unsafe { (self._read)(&self, &buffer_size, buff.as_ptr().cast()) };
+
+        match result {
+            0 => { return buff }
+
+            _ => { panic!("EFI Error: {}", result)}
+        }
+    }
+
+    pub fn get_info(&self, info_type: GUID) -> &FileInfo {
+        let buffer_size = 102;
+        let file_info: &FileInfo = unsafe { &*core::ptr::dangling() };
+        let result = unsafe { (self._get_info)(&self, &info_type, &buffer_size, (file_info as *const FileInfo).cast()) };
+
+        match result {
+            0 => { file_info }
+
+            _ => { panic!("EFI Error: {}", result) }
+        }
+    }
+}
+
+#[repr(C)]
+pub struct FileInfo {
+    pub size:           u64,
+    pub file_size:      u64,
+    pub phys_size:      u64,
+    pub create_time:    [u8; 14], // EFI_TIME
+    pub last_accessed:  [u8; 14], // ^
+    pub last_modified:  [u8; 14], // ^
+    pub attribute:      u64,
+    pub filename:       [u16; 16],
+}
+
+impl FileInfo {
+    pub const fn guid() -> GUID {
+        GUID::new(0x09576e92,0x6d3f,0x11d2,[0x8e,0x39,0x00,0xa0,0xc9,0x69,0x72,0x3b])
     }
 }
 
 
-
-pub fn encode_utf16(s: &str) -> Vec<u16> {
-    let mut utf16str: Vec<u16> = Vec::new();
-    for c in str::encode_utf16(s) {
-        utf16str.push(c);
-    }
-
-    utf16str
+pub struct FilesystemInfo {
+    //
 }
