@@ -80,7 +80,7 @@ pub fn probe_disks() {
                     }
                     else {
                         partition_entries.push(SliceEntry::new(guid, handles[i] as *const usize, FilesystemType::Unknown, false));
-                        ldrprintln!("Found partition with GUID: {}", guid.as_string());
+                        ldrprintln!("Found slice with GUID: {}", guid.as_string());
                     }
                 }
 
