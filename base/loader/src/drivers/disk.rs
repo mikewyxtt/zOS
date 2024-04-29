@@ -95,7 +95,7 @@ pub unsafe fn read_bytes_raw(partition: GUID, lba: u64, count: usize, buffer: *m
 
 /// Searches for block devices and returns a Vector of BlockDevice structs
 fn probe_disks() {
-    super::uefi::disk::probe_disks()
+    super::uefi::disk::init()
 }
 
 

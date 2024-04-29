@@ -28,12 +28,14 @@ extern crate alloc;
 
 #[macro_use]
 mod allocator;
+mod config;
 mod drivers;
 mod libuefi;
 
 use core::panic::PanicInfo;
 use alloc::vec;
 use alloc::vec::Vec;
+use config::parse_cfg;
 use debugutils::hexdump_blocks;
 use drivers::*;
 
@@ -43,7 +45,9 @@ extern "win64" fn efi_main(efi_image_handle: *const usize, efi_system_table: *co
     libuefi::init(efi_image_handle, efi_system_table);
     console::clear();
     disk::init();
-    let cfg = drivers::uefi::disk::parse_cfg();
+    fs::init();
+
+    let cfg = parse_cfg();
 
 
     ldrprintln!("root={}", cfg.rootfs.as_string());
