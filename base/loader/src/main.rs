@@ -32,6 +32,9 @@ mod drivers;
 mod libuefi;
 
 use core::panic::PanicInfo;
+use alloc::vec;
+use alloc::vec::Vec;
+use debugutils::hexdump_blocks;
 use drivers::*;
 
 
@@ -40,14 +43,13 @@ extern "win64" fn efi_main(efi_image_handle: *const usize, efi_system_table: *co
     libuefi::init(efi_image_handle, efi_system_table);
     console::clear();
     disk::init();
-    drivers::uefi::disk::getcfg();
+    let cfg = drivers::uefi::disk::parse_cfg();
 
 
-    ldrprintln!("Hello, World!");
+    ldrprintln!("root={}", cfg.rootfs.as_string());
+    ldrprintln!("resolution={}", cfg.resolution);
 
-    // unsafe { drivers::uefi::disk::read_bytes_raw("", 0, 0, core::ptr::null_mut()) };
-
-
+    ldrprintln!("Done. Looping.");
     loop {}
 }
 
