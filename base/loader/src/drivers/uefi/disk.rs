@@ -17,50 +17,51 @@
  *  along with zOS. If not, see <http://www.gnu.org/licenses/>.
  */
 
-use core::{mem::size_of, ptr};
-use alloc::{string::{String, ToString}, vec, vec::Vec};
-use crate::libuefi::{bootservices::{BootServices, LocateSearchType}, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}, file::{File, FileInfo}, filesystem::SimpleFilesystem, loaded_image::LoadedImageProtocol}, GUID};
+#![allow(dead_code)]
+
+use core::ptr;
+use alloc::vec;
+use alloc::{format, string::{String, ToString}, vec::Vec};
+use crate::libuefi::{bootservices::BootServices, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}, file::FileInfo, filesystem::SimpleFilesystem, loaded_image::LoadedImageProtocol}, GUID};
 
 
-static mut PARTITION_ENTRIES: Vec<PartitionEntry> = Vec::new();
+static mut SLICE_ENTRIES: Vec<SliceEntry> = Vec::new();
 
-
-struct PartitionEntry {
-    guid: GUID,
-    handle: *const usize,
+#[derive(Clone, Copy)]
+struct SliceEntry {
+    guid:                   GUID,
+    handle:                 *const usize,
+    pub fs_type:            FilesystemType,
+    pub is_efi_sys:         bool,
 }
 
-impl PartitionEntry {
-    pub const fn new(guid: GUID, handle: *const usize) -> Self {
+impl SliceEntry {
+    pub const fn new(guid: GUID, handle: *const usize, fs_type: FilesystemType, is_efi_sys: bool) -> Self {
         Self {
             guid,
-            handle
+            handle,
+            fs_type,
+            is_efi_sys,
         }
     }
 }
 
 
-/// Fills PARTITION_ENTRIES with a list of partition GUIDs and their EFI Handle
+/// Fills SLICE_ENTRIES with a list of slice GUIDs and their EFI Handle
 pub fn probe_disks() {
-    /* 
-     * The locate_handle() function from the UEFI boot services table places a pointer in 'buffer' to an array of handles supporting the protocol that is being searched for. We obviously don't know how big the array is at compile time but fortunately if you call the function with
-     * buffer_size set to 0 it will change buffer_size the size needed to hold the array. We can then create a vector with that value to hold the array of handles.
-     */
-    let mut buffer_size = 0;
 
-    BootServices::locate_handle(LocateSearchType::ByProtocol, &(BlockIOProtocol::guid()), ptr::null(), &mut buffer_size, core::ptr::dangling_mut());
-    let handles: Vec<usize> = vec![0; buffer_size / size_of::<usize>()];
-    BootServices::locate_handle(LocateSearchType::ByProtocol, &(BlockIOProtocol::guid()), ptr::null(), &mut buffer_size, handles.as_ptr().cast_mut());
+    // Get the EFI_HANDLE of the slice containing the EFI System Partition so we can label its SliceEntry as such
+    let efi_sys_handle = BootServices::handle_protocol::<LoadedImageProtocol>(crate::libuefi::IMAGE_HANDLE.load(core::sync::atomic::Ordering::SeqCst)).device_handle;
 
+
+    // Get a list of handles that support the BlockIOProtocol. This list includes every storage media device + their partitions.
+    let handles = BootServices::locate_handle_by_protocol::<BlockIOProtocol>();
     
-    // Iterate through the handles, parse the device path and add each disks to a vector
-    let mut partition_entries: Vec<PartitionEntry> = Vec::new();
+    // Iterate through the handles, looking specifically for the Hard Drive Device Path node. This specific node indicates that the handle belongs to a slice
+    let mut partition_entries: Vec<SliceEntry> = Vec::new();
 
     for i in 0..handles.len() {
-        let device_path_protocol_ptr: *mut *mut DevicePathProtocol = core::ptr::dangling_mut();
-        BootServices::handle_protocol(handles[i] as *const usize, &(DevicePathProtocol::guid()), device_path_protocol_ptr.cast());
-        
-        let mut node: &DevicePathProtocol = unsafe { &mut (**device_path_protocol_ptr)};
+        let mut node = BootServices::handle_protocol::<DevicePathProtocol>(handles[i] as *const usize);
 
         while (node._type, node.subtype) != (0x7F, 0xFF)  {
             match (node._type, node.subtype, node.length[0] + node.length[1]) {
@@ -71,8 +72,16 @@ pub fn probe_disks() {
                     let hddp: &HardDriveDevicePath = unsafe { &*((node as *const DevicePathProtocol).cast()) };
                     let guid = hddp.partition_sig;
             
-                    partition_entries.push(PartitionEntry::new(guid, handles[i] as *const usize));
-                    ldrprintln!("Found partition with GUID: {}", guid.as_string());
+            
+                    // See if we found the ESP or not
+                    if handles[i] == efi_sys_handle as usize {
+                        partition_entries.push(SliceEntry::new(guid, handles[i] as *const usize, FilesystemType::FAT, true));
+                        ldrprintln!("Found EFI SYSTEM PARTITION with GUID: {}", guid.as_string());
+                    }
+                    else {
+                        partition_entries.push(SliceEntry::new(guid, handles[i] as *const usize, FilesystemType::Unknown, false));
+                        ldrprintln!("Found partition with GUID: {}", guid.as_string());
+                    }
                 }
 
                 _ => {}
@@ -83,7 +92,7 @@ pub fn probe_disks() {
     }
 
     assert!(partition_entries.is_empty() == false);
-    unsafe { PARTITION_ENTRIES = partition_entries; }
+    unsafe { SLICE_ENTRIES = partition_entries; }
 }
 
 
@@ -92,11 +101,9 @@ pub fn probe_disks() {
 
 pub unsafe fn read_bytes_raw(guid: GUID, lba: u64, count: usize, buffer: *mut u8) -> Result<(), String> {
 
-    let block_io_protocol: *mut *mut BlockIOProtocol = core::ptr::dangling_mut();
-    BootServices::handle_protocol(lookup_handle(guid), &(BlockIOProtocol::guid()), block_io_protocol.cast());
-    let block_io_protocol: &BlockIOProtocol = unsafe { &(**block_io_protocol) };
+    let block_io_protocol = BootServices::handle_protocol::<BlockIOProtocol>(lookup_handle(guid));
 
-    let block_size = unsafe { (*block_io_protocol.media).block_size } as usize;
+    let block_size = (*block_io_protocol.media).block_size as usize;
 
     if count < block_size {
         let mut tmp: Vec<u8> = vec![0; block_size];
@@ -115,6 +122,7 @@ pub unsafe fn read_bytes_raw(guid: GUID, lba: u64, count: usize, buffer: *mut u8
         if status == 0 {
             Ok(())
         }
+
         else {
             Err(alloc::format!("EFI ERROR: {}", status).to_string())
         }
@@ -123,12 +131,12 @@ pub unsafe fn read_bytes_raw(guid: GUID, lba: u64, count: usize, buffer: *mut u8
 
 
 
-
+/// Returns the EFI_HANDLE belonging to a given slice
 fn lookup_handle(guid: GUID) -> *const usize {
     unsafe {
-        assert!(PARTITION_ENTRIES.is_empty() == false);
+        assert_eq!(SLICE_ENTRIES.is_empty(), false);
         
-        for partition in PARTITION_ENTRIES.iter() {
+        for partition in SLICE_ENTRIES.iter() {
             if partition.guid.as_string() == guid.as_string() {
                 return partition.handle
             }
@@ -139,40 +147,195 @@ fn lookup_handle(guid: GUID) -> *const usize {
 }
 
 
-pub fn getcfg() {
-    let loaded_image_protocol: *mut *mut LoadedImageProtocol = core::ptr::dangling_mut();
-    BootServices::handle_protocol(crate::libuefi::IMAGE_HANDLE.load(core::sync::atomic::Ordering::SeqCst), &(LoadedImageProtocol::guid()), loaded_image_protocol.cast());
-    let loaded_image_protocol: &LoadedImageProtocol = unsafe { &mut (**loaded_image_protocol)};
 
-    let filesys_protocol: *mut *mut SimpleFilesystem = core::ptr::dangling_mut();
-    BootServices::handle_protocol(loaded_image_protocol.device_handle, &(SimpleFilesystem::guid()), filesys_protocol.cast());
-    let filesys_protocol: &SimpleFilesystem = unsafe { &mut (**filesys_protocol) };
+/// Finds a SliceEntry by GUID
+fn find_slice(guid: GUID) -> SliceEntry {
+    unsafe {
+        assert_eq!(SLICE_ENTRIES.is_empty(), false);
+        
+        for partition in SLICE_ENTRIES.iter() {
+            if partition.guid == guid {
+                return *partition
+            }
+        }
 
-    let file = filesys_protocol.open_volume();
-
-    // let file = {
-    //     let loaded_image_protocol: *mut *mut LoadedImageProtocol = core::ptr::dangling_mut();
-    //     BootServices::handle_protocol(crate::libuefi::IMAGE_HANDLE.load(core::sync::atomic::Ordering::SeqCst), &(LoadedImageProtocol::guid()), loaded_image_protocol.cast());
-    //     let loaded_image_protocol: &LoadedImageProtocol = unsafe { &mut (**loaded_image_protocol)};
-
-    //     let filesys_protocol: *mut *mut SimpleFilesystem = core::ptr::dangling_mut();
-    //     BootServices::handle_protocol(loaded_image_protocol.device_handle, &(SimpleFilesystem::guid()), filesys_protocol.cast());
-    //     let filesys_protocol: &SimpleFilesystem = unsafe { &mut (**filesys_protocol)};
-
-    //     filesys_protocol.open_volume()
-    // };
-    
-
-    let file = file.open("\\EFI\\BOOT\\ZOS\\LOADER.CFG\0", 1, None);
-    let info = file.get_info(FileInfo::guid());
-    ldrprintln!("file size: {} bytes", info.file_size);
-
-    let contents = file.read();
-
-    for b in contents {
-        let c = b as char;
-        ldrprint!("{}", c);
+        panic!("Could not find slice with GUID: {}.", guid.as_string());
     }
-    ldrprint!("\n");
+}
 
+
+
+/// Finds the EFI System Partition's slice entry
+fn find_esp_slice() -> SliceEntry {
+    unsafe {
+        assert_eq!(SLICE_ENTRIES.is_empty(), false);
+        
+        for partition in SLICE_ENTRIES.iter() {
+            if partition.is_efi_sys == true {
+                return *partition
+            }
+        }
+
+        panic!("Could not find EFI System Partition.");
+    }
+}
+
+
+
+
+/// Parses a key="value" pair
+pub fn parse_key_value_pair(line: &str) -> (String, String) {
+
+    if !line.contains('=') {
+        ldrprintln!("WARNING: Unknown configuration line \"{}\". Ignoring.", line);
+        return (String::new(), String::new())
+    }
+
+    let (key, value) = line.split_once('=').unwrap();
+    let key = key.trim();
+    let value = value.trim();
+    let value = value.trim_matches('"');
+
+    (key.to_string(), value.to_string())
+}
+
+
+
+pub struct Config {
+    pub rootfs:         GUID,
+    pub resolution:     String,
+}
+
+
+
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            rootfs:     GUID::new(0,0,0, [0; 8]),
+            resolution: String::from("native"),
+        }
+    }
+}
+
+
+/// Reads and parses the cfg file from the ESP
+pub fn parse_cfg() -> Config {
+    let mut config = Config::default();
+
+    let mut f = File::open(find_esp_slice().guid, "/EFI/BOOT/ZOS/LOADER.CFG");
+
+    let mut eof = false;
+    let mut line: String;
+
+    while !eof {
+        (line, eof) = f.readln();
+        let (key, value) = parse_key_value_pair(line.as_str());
+
+        match key.as_str() {
+            "root" => {
+                config.rootfs = GUID::new_from_string(&value);
+            }
+
+            "resolution" => {
+                config.resolution=value;
+            }
+
+            _=> { ldrprintln!("WARNING: Unknown configuration option \"{}\". Ignoring.", key); }
+        }
+    }
+
+    config
+}
+
+struct File {
+    filesystem_type:    FilesystemType,
+    contents: Vec<u8>,
+    position: u64,
+    filesize: u64,
+}
+
+
+impl File {
+    pub fn open(slice: GUID, path: &str) -> Self {
+
+        let slice = find_slice(slice);
+
+
+        match slice.fs_type {
+            FilesystemType::FAT => {
+                // UEFI paths are Microsoft style '\' rather than '/'
+                let path = String::from(format!("{}\0", path.to_string().to_ascii_uppercase().replace("/", "\\")));
+
+
+                // First we need to access the filesystem protocol
+                let filesys_protocol = BootServices::handle_protocol::<SimpleFilesystem>(slice.handle);
+
+                // Then we open the volume and open the file
+                let file = filesys_protocol.open_volume();
+                let file = file.open(path.as_str(), 1, None);
+                let info = file.get_info(FileInfo::guid());
+
+                // Read the files contents into a buffer
+                let mut count: usize = info.file_size as usize;
+                let mut contents: Vec<u8> = Vec::with_capacity(count);
+                file.read(&mut count, &mut contents);
+
+                // Close the EFI file
+                // Needs to be done
+
+                return Self {
+                    filesystem_type: FilesystemType::FAT,
+                    contents,
+                    position: 0,
+                    filesize: count as u64,
+                }
+            }
+
+            FilesystemType::XFS => {
+                //
+            }
+
+            FilesystemType::Unknown => {
+                //
+            }
+        }
+
+        Self {
+            filesystem_type: slice.fs_type,
+            contents: Vec::new(),
+            filesize: 0,
+            position: 0
+        }
+    }
+
+    
+    pub fn readln(&mut self) -> (String, bool) {
+        let mut s = String::new();
+
+        while self.contents[self.position as usize] != b'\n' {
+            if self.position >= self.filesize {
+                self.position = 0;
+                break;
+            }
+            s.push(self.contents[self.position as usize] as char);
+            self.position += 1;
+
+        }
+        self.position +=1;
+
+        if self.position >= self.filesize {
+            self.position = 0;
+            return (s, true)
+        }
+
+        (s, false)
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FilesystemType {
+    FAT,
+    XFS,
+    Unknown,
 }

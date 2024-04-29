@@ -18,20 +18,19 @@
  */
 #![allow(dead_code)]
 
-use alloc::vec;
 use alloc::vec::Vec;
 
 use crate::libuefi::GUID;
 
 
-
+#[allow(non_camel_case_types)]
 #[repr(C)]
-pub struct File {
+pub struct EFI_File {
     pub revision:       u64,
     _open:              unsafe extern "C" fn(&Self, &mut &mut Self, *const u16, u64, u64) -> u32,
     _close:             unsafe extern "C" fn(),
     _delete:            unsafe extern "C" fn(),
-    _read:              unsafe extern "C" fn(&Self, &usize, *const u8) -> u32,
+    _read:              unsafe extern "C" fn(&Self, &mut usize, *const u8) -> u32,
     _write:             unsafe extern "C" fn(),
     _get_position:      unsafe extern "C" fn(),
     _set_position:      unsafe extern "C" fn(),
@@ -45,11 +44,11 @@ pub struct File {
 }
 
 
-impl File {
+impl EFI_File {
     pub fn open(&self, file: &str, open_mode: u64, attr: Option<u64>) -> &Self {
         assert_eq!(attr, None, "File creation is not supported in this UEFI implementation.");
 
-        let f: &mut &mut File = unsafe { &mut(*core::ptr::dangling_mut()) };
+        let f: &mut &mut EFI_File = unsafe { &mut(*core::ptr::dangling_mut()) };
         
         let utf16_str: Vec<u16> = file.encode_utf16().collect();
 
@@ -63,19 +62,20 @@ impl File {
         }
     }
 
-    /// Reads the entire file into a Vec<u8>
-    pub fn read(&self) -> Vec<u8> {
-        let buffer_size = self.get_info(FileInfo::guid()).file_size as usize;
-        let buff: Vec<u8> = vec![0; buffer_size];
 
-        let result = unsafe { (self._read)(&self, &buffer_size, buff.as_ptr().cast()) };
+    /// Reads the entire file into a Vec<T>
+    pub fn read<T>(&self, count: &mut usize, buffer: &mut Vec<T>) {
+        assert!(*count <= core::mem::size_of::<T>() * buffer.capacity());
+
+        let result = unsafe { (self._read)(&self, count, buffer.as_ptr().cast()) };
 
         match result {
-            0 => { return buff }
+            0 => { unsafe { buffer.set_len(*count)}; }
 
-            _ => { panic!("EFI Error: {}", result)}
+            _ => { panic!("EFI Error: {}", result) }
         }
     }
+
 
     pub fn get_info(&self, info_type: GUID) -> &FileInfo {
         let buffer_size = 102;
@@ -106,9 +106,4 @@ impl FileInfo {
     pub const fn guid() -> GUID {
         GUID::new(0x09576e92,0x6d3f,0x11d2,[0x8e,0x39,0x00,0xa0,0xc9,0x69,0x72,0x3b])
     }
-}
-
-
-pub struct FilesystemInfo {
-    //
 }

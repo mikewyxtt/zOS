@@ -21,24 +21,28 @@
 
 use crate::libuefi::GUID;
 
-use super::file::File;
+use super::{file::EFI_File, EFIProtocol};
 
 #[repr(C)]
 pub struct SimpleFilesystem {
     pub revision:   u64,
-    _open_volume:   unsafe extern "C" fn(&Self, &&File),
+    _open_volume:   unsafe extern "C" fn(&Self, &&EFI_File),
 }
 
 impl SimpleFilesystem {
-    pub const fn guid() -> GUID {
-        GUID::new(0x0964e5b22, 0x6459, 0x11d2, [0x8e,0x39,0x00,0xa0,0xc9,0x69,0x72,0x3b])
-    }
-    pub fn open_volume(&self) -> &File {
+
+    pub fn open_volume(&self) -> &EFI_File {
         unsafe { 
-            let f: &&File = &&*(core::ptr::dangling_mut());
+            let f: &&EFI_File = &&*(core::ptr::dangling_mut());
             (self._open_volume)(&self, f);
 
             &(**f)
         }
+    }
+}
+
+impl EFIProtocol for SimpleFilesystem {
+    fn guid() -> GUID {
+        GUID::new(0x0964e5b22, 0x6459, 0x11d2, [0x8e,0x39,0x00,0xa0,0xc9,0x69,0x72,0x3b])
     }
 }
