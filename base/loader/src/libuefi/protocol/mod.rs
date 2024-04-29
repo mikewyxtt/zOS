@@ -23,3 +23,7 @@ pub mod loaded_image;
 pub mod file;
 pub mod filesystem;
 pub mod simple_text_output;
+
+pub trait EFIProtocol {
+    fn guid() -> super::GUID;
+}

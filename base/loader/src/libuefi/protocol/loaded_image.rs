@@ -19,6 +19,7 @@
 
 #![allow(dead_code)]
 
+use super::EFIProtocol;
 use super::{super::general::GUID, device_path::DevicePathProtocol};
 use super::super::{SystemTable, bootservices::MemoryType};
 
@@ -46,10 +47,6 @@ pub struct LoadedImageProtocol {
 }
 
 impl LoadedImageProtocol {
-    /// Returns GUID for the LoadedImageProtocol
-    pub const fn guid() -> GUID {
-        GUID::new(0x5B1B31A1, 0x9562, 0x11d2, [0x8E,0x3F,0x00,0xA0,0xC9,0x69,0x72,0x3B])
-    }
 
     pub fn verify_revision(&self) -> bool {
         const REVISION: u32 = 0x1000;
@@ -60,5 +57,11 @@ impl LoadedImageProtocol {
         else {
             false
         }
+    }
+}
+
+impl EFIProtocol for LoadedImageProtocol {
+    fn guid() -> GUID {
+        GUID::new(0x5B1B31A1, 0x9562, 0x11d2, [0x8E,0x3F,0x00,0xA0,0xC9,0x69,0x72,0x3B])
     }
 }

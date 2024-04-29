@@ -30,7 +30,7 @@ pub static IMAGE_HANDLE: AtomicPtr<usize> = AtomicPtr::new(core::ptr::null_mut()
 
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct GUID {
     data1: u32,
     data2: u16,
@@ -46,6 +46,35 @@ impl GUID {
             data3,
             data4
         }
+    }
+
+
+    pub fn new_from_string(guid: &str) -> GUID {
+
+        // Break the string up into its data parts
+        let (data1, rem) = guid.split_once('-').unwrap();
+        let (data2, rem) = rem.split_once('-').unwrap();
+        let (data3, rem) = rem.split_once('-').unwrap();
+        let data4 = rem.replace('-', "");
+
+        // Convert each part into an integer
+        let data1 = u32::from_str_radix(data1, 16).unwrap();
+        let data2 = u16::from_str_radix(data2, 16).unwrap();
+        let data3 = u16::from_str_radix(data3, 16).unwrap();
+
+
+        // Since the values are in hex we break the string 2 chars at a time and convert said chars into a hex value (u8)
+        // There is probably a better way to do this but this works for now
+        let mut d4: [u8; 8] = [0; 8];
+
+        let mut data4 = data4.as_str();
+        let mut rem = data4;
+        for b in 0..8 {
+            (data4, rem) = rem.split_at(2);
+            d4[b] = u8::from_str_radix(data4, 16).unwrap();
+        }
+
+        GUID::new(data1, data2, data3, d4)
     }
 
     pub fn as_string(&self) -> String {
@@ -100,3 +129,4 @@ pub fn init(image_handle: *const usize, system_table: *const SystemTable) {
     SYSTEM_TABLE_PTR.store(system_table.cast_mut(), Ordering::SeqCst);
     IMAGE_HANDLE.store(image_handle.cast_mut(), Ordering::SeqCst);
 }
+

@@ -19,11 +19,13 @@
 
 #![allow(dead_code)]
 
-use core::sync::atomic::Ordering;
+use core::{mem::size_of, sync::atomic::Ordering};
 use core::ffi::c_void;
 use core::ptr;
+use alloc::vec;
+use alloc::vec::Vec;
 
-use super::{GUID, TableHeader, SYSTEM_TABLE_PTR, IMAGE_HANDLE};
+use super::{protocol::EFIProtocol, TableHeader, GUID, IMAGE_HANDLE, SYSTEM_TABLE_PTR};
 
 #[repr(C)]
 pub struct BootServices {
@@ -86,6 +88,7 @@ impl BootServices {
 /* Protocol Handler Services */
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub enum LocateSearchType {
     AllHandles,
     ByRegisterNotify,
@@ -93,13 +96,24 @@ pub enum LocateSearchType {
 }
 
 impl BootServices {
-    pub fn locate_handle(search_type: LocateSearchType, protocol: &GUID, search_key: *const c_void, buffer_size: &mut usize, buffer: *mut usize) -> u32{
-        unsafe { (Self::get()._locate_handle)(search_type, protocol, search_key, buffer_size, buffer) }
+
+    /// Returns a vector of handles that support protocol <T>
+    pub fn locate_handle_by_protocol<T: EFIProtocol>() -> Vec<usize> {
+        // Setting the buffer size to 0 allows the firmware to replace the value of 'buffer_size' to the array size needed to hold the list.
+        let mut buffer_size = 0;
+
+        unsafe { (Self::get()._locate_handle)(LocateSearchType::ByProtocol, &T::guid(), core::ptr::null(), &mut buffer_size, core::ptr::dangling_mut()); }
+        let mut handles: Vec<usize> = vec![0; buffer_size / size_of::<usize>()];
+        unsafe { (Self::get()._locate_handle)(LocateSearchType::ByProtocol, &T::guid(), core::ptr::null(), &mut buffer_size, handles.as_mut_ptr()); }
+
+        handles
     }
 
     /// Returns a protocol interface
-    pub fn handle_protocol(handle: *const usize, guid: &GUID, interface: *mut *mut usize) -> u32 {
-        unsafe { (Self::get()._handle_protocol)(handle.cast(), guid, interface as *const *const c_void) }
+    pub fn handle_protocol<T: EFIProtocol>(handle: *const usize) -> &'static T {
+        let proto: *mut *mut T = core::ptr::dangling_mut();
+        unsafe { (Self::get()._handle_protocol)(handle.cast(), &T::guid(), proto as *const *const c_void); }
+        unsafe { &mut (**proto ) }
     }
 
     /// Opens aprotocol

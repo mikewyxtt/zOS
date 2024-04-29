@@ -20,7 +20,7 @@
 #![allow(dead_code)]
 
 
-use super::super::GUID;
+use super::{super::GUID, EFIProtocol};
 
 
 #[repr(C, packed)]
@@ -44,6 +44,12 @@ impl DevicePathProtocol {
 
             _ => { panic!("Next EFI Device Path node is invalid. Node type: 0x{:02X}", next_node._type); }
         }
+    }
+}
+
+impl EFIProtocol for DevicePathProtocol {
+    fn guid() -> GUID {
+        GUID::new(0x09576e91,0x6d3f,0x11d2,[0x8e,0x39,0x00,0xa0,0xc9,0x69,0x72,0x3b])
     }
 }
 
