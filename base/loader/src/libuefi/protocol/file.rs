@@ -64,13 +64,12 @@ impl EFI_File {
 
 
     /// Reads the entire file into a Vec<T>
-    pub fn read<T>(&self, count: &mut usize, buffer: &mut Vec<T>) {
-        assert!(*count <= core::mem::size_of::<T>() * buffer.capacity());
+    pub unsafe fn read<T>(&self, count: &mut usize, buffer: *mut T) {
 
-        let result = unsafe { (self._read)(&self, count, buffer.as_ptr().cast()) };
+        let result = unsafe { (self._read)(&self, count, buffer.cast()) };
 
         match result {
-            0 => { unsafe { buffer.set_len(*count)}; }
+            0 => { }
 
             _ => { panic!("EFI Error: {}", result) }
         }
