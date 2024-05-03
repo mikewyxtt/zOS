@@ -61,7 +61,6 @@ pub struct File {
     slice:              GUID,
     path:               String,
     filesize:           u64,
-    position:           i64,
 }
 
 
@@ -89,7 +88,6 @@ impl File {
                 return Self {
                     slice:      slice.guid,
                     path,
-                    position: 0,
                     filesize: info.file_size,
                 }
             }
@@ -99,7 +97,6 @@ impl File {
                 return Self {
                     slice:      slice.guid,
                     path: path.to_string(),
-                    position: 0,
                     filesize: filesize,
                 }
             }
@@ -164,10 +161,6 @@ impl File {
         }
 
         s
-    }
-
-    pub fn get_position(&self) -> i64 {
-        self.position
     }
 }
 
