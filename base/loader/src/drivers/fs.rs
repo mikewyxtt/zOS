@@ -84,10 +84,7 @@ impl File {
                 let file = file.open(path.as_str(), 1, None);
                 let info = file.get_info(FileInfo::guid());                
 
-                
-
-                // Close the EFI file, we will reopen it when we read from it..
-                // !!Needs to be done!!
+                file.close();
 
                 return Self {
                     slice:      slice.guid,
@@ -134,12 +131,11 @@ impl File {
                 unsafe { 
                     file.read(&mut efi_count, buffer);
                 }
-                
+
+                file.close();
 
                 efi_count
 
-                // Close the EFI file
-                // !!Needs to be done!!
             }
 
             FilesystemType::XFS => {

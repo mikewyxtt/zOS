@@ -28,7 +28,7 @@ use crate::libuefi::GUID;
 pub struct EFI_File {
     pub revision:       u64,
     _open:              unsafe extern "C" fn(&Self, &mut &mut Self, *const u16, u64, u64) -> u32,
-    _close:             unsafe extern "C" fn(),
+    _close:             unsafe extern "C" fn(&Self),
     _delete:            unsafe extern "C" fn(),
     _read:              unsafe extern "C" fn(&Self, &mut usize, *const u8) -> u32,
     _write:             unsafe extern "C" fn(),
@@ -60,6 +60,10 @@ impl EFI_File {
                 _ => { panic!("EFI ERROR: {}", status); }
             }
         }
+    }
+
+    pub fn close(&self) {
+        unsafe { ((self._close)(self)); }
     }
 
 
