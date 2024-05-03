@@ -49,7 +49,7 @@ EOF
 	## Copy files ##
 	################
 	echo "Copying files..."
-	build_install /tmp/zOS_build/rootfs
+	do_install /tmp/zOS_build/rootfs
 
 	# We format the partition and copy files onto it in the same go
 	mkfs.ext2 -d /tmp/zOS_build/rootfs /tmp/zOS_build/rootfs.img

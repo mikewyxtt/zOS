@@ -12,7 +12,7 @@ do_clean() {
     cargo clean
 }
 
-build_do_install() {
+do_install() {
     return
 }
 

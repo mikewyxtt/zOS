@@ -12,7 +12,7 @@ do_clean() {
     cargo clean
 }
 
-build_do_install() {
+do_install() {
     echo
     cp target/x86_64-unknown-none/debug/hello $1/hello.zxt
 }
