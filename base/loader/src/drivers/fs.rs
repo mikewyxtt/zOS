@@ -20,30 +20,32 @@
 #![allow(dead_code)]
 
 use alloc::{format, string::{String, ToString}, vec::Vec};
-use crate::{drivers::uefi::disk, libuefi::{bootservices::BootServices, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}, file::FileInfo, filesystem::SimpleFilesystem, loaded_image::LoadedImageProtocol}, GUID}};
+use crate::libuefi::{bootservices::BootServices, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}, file::{self, EFI_File, FileInfo}, filesystem::SimpleFilesystem, loaded_image::LoadedImageProtocol}, GUID};
 
 
-static mut SLICE_ENTRIES: Vec<FSInfo> = Vec::new();
+static mut SLICE_ENTRIES: Vec<SliceInfo> = Vec::new();
+
+pub const EOF: i8 = -1;
 
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum FilesystemType {
     FAT,
     XFS,
-    Unknown,
+    UNKNOWN,
 }
 
 
 
 #[derive(Clone, Copy)]
-struct FSInfo {
+struct SliceInfo {
     guid:       GUID,
     handle:     *const usize,
     fs_type:    FilesystemType,
     is_esp:     bool,
 }
 
-impl FSInfo {
+impl SliceInfo {
     pub const fn new(guid: GUID, handle: *const usize, fs_type: FilesystemType, is_esp: bool) -> Self {
         Self {
             guid,
@@ -54,96 +56,130 @@ impl FSInfo {
     }
 }
 
-
+#[derive(PartialEq)]
 pub struct File {
-    filesystem_type:    FilesystemType,
-    contents: Vec<u8>,
-    position: u64,
-    filesize: u64,
+    slice:              GUID,
+    path:               String,
+    filesize:           u64,
+    position:           i64,
 }
 
 
 impl File {
+    /// Opens a file, reading its entire contents into a vector
     pub fn open(slice: GUID, path: &str) -> Self {
 
         let slice = find_slice(slice);
 
-
         match slice.fs_type {
             FilesystemType::FAT => {
-                // // UEFI paths are Microsoft style '\' rather than '/'
+                // UEFI paths are Microsoft style '\' rather than '/'
                 let path = String::from(format!("{}\0", path.to_string().to_ascii_uppercase().replace("/", "\\")));
 
-
-                // First we need to access the filesystem protocol
+                // First we need to access the filesystem protocol to open the root directory
                 let filesys_protocol = BootServices::handle_protocol::<SimpleFilesystem>(slice.handle);
-
-                // Then we open the volume and open the file
                 let file = filesys_protocol.open_volume();
+              
+                // Now we can open the file
                 let file = file.open(path.as_str(), 1, None);
-                let info = file.get_info(FileInfo::guid());
+                let info = file.get_info(FileInfo::guid());                
 
-                // Read the files contents into a buffer
-                let mut count: usize = info.file_size as usize;
-                let mut contents: Vec<u8> = Vec::with_capacity(count);
-                file.read(&mut count, &mut contents);
+                
 
-                // Close the EFI file
-                // Needs to be done
+                // Close the EFI file, we will reopen it when we read from it..
+                // !!Needs to be done!!
 
                 return Self {
-                    filesystem_type: FilesystemType::FAT,
-                    contents,
+                    slice:      slice.guid,
+                    path,
                     position: 0,
-                    filesize: count as u64,
+                    filesize: info.file_size,
                 }
             }
 
             FilesystemType::XFS => {
-                //
+                let filesize = 0;
+                return Self {
+                    slice:      slice.guid,
+                    path: path.to_string(),
+                    position: 0,
+                    filesize: filesize,
+                }
             }
 
-            FilesystemType::Unknown => {
-                //
+            FilesystemType::UNKNOWN => {
+                panic!("Trying to open \"{path}\" on slice with GUID {} failed: Unknown filesystem \nHalting.", slice.guid.as_string())
             }
-        }
-
-        Self {
-            filesystem_type: slice.fs_type,
-            contents: Vec::new(),
-            filesize: 0,
-            position: 0
         }
     }
 
-    
-    pub fn readln(&mut self) -> (String, bool) {
+    /// Reads 'count' bytes from the file into 'buffer'. Returns the amount of bytes that were read
+    pub unsafe fn read_raw(&self, count: usize, buffer: *mut u8) -> usize {
+        assert!(count <= self.filesize as usize);
+
+        let fs_type = find_slice(self.slice).fs_type;
+        match fs_type {
+            FilesystemType::FAT => {
+                // UEFI paths are Microsoft style '\' rather than '/'
+                let path = String::from(format!("{}\0", self.path.to_string().to_ascii_uppercase().replace("/", "\\")));
+
+                // First we need to access the filesystem protocol to open the root directory
+                let filesys_protocol = BootServices::handle_protocol::<SimpleFilesystem>(find_slice(self.slice).handle);
+                let file = filesys_protocol.open_volume();
+              
+                // Now we can open the file
+                let file = file.open(path.as_str(), 1, None);
+
+                let mut efi_count = count;
+                unsafe { 
+                    file.read(&mut efi_count, buffer);
+                }
+                
+
+                efi_count
+
+                // Close the EFI file
+                // !!Needs to be done!!
+            }
+
+            FilesystemType::XFS => {
+                //
+                0
+            }
+
+            FilesystemType::UNKNOWN => {
+                panic!("Error: Cannot read '{}' from slice with GUID {}: File not found \nHalting.", self.path, self.slice.as_string())
+            }
+        }
+    }
+
+    /// Reads the entire contents of the file into a String
+    pub fn read_to_string(&self) -> String {
         let mut s = String::new();
 
-        while self.contents[self.position as usize] != b'\n' {
-            if self.position >= self.filesize {
-                self.position = 0;
-                break;
-            }
-            s.push(self.contents[self.position as usize] as char);
-            self.position += 1;
-
-        }
-        self.position +=1;
-
-        if self.position >= self.filesize {
-            self.position = 0;
-            return (s, true)
+        let mut contents = Vec::with_capacity(self.filesize as usize);
+        unsafe {
+            self.read_raw(self.filesize as usize, contents.as_mut_ptr());
+            contents.set_len(self.filesize as usize);
         }
 
-        (s, false)
+        for b in &contents {
+            s.push(*b as char);
+        }
+
+        s
+    }
+
+    pub fn get_position(&self) -> i64 {
+        self.position
     }
 }
 
 
 
+
 /// Finds a slice by GUID
-fn find_slice(guid: GUID) -> FSInfo {
+fn find_slice(guid: GUID) -> SliceInfo {
     unsafe {
         for slice in SLICE_ENTRIES.iter() {
             if slice.guid == guid {
@@ -176,7 +212,7 @@ pub fn get_esp_guid() -> GUID {
 
 /// Detects the filesystem of the slice
 fn detect_fs_type(guid: GUID) -> FilesystemType {
-    FilesystemType::Unknown
+    FilesystemType::UNKNOWN
 }
 
 
@@ -185,15 +221,16 @@ fn detect_fs_type(guid: GUID) -> FilesystemType {
 /// Initialize the filesystem driver
 pub fn init() {
 
-    // Get the EFI_HANDLE of the slice containing the EFI System Partition so we can label its SliceEntry as such
+    // Get the EFI_HANDLE of the slice containing the EFI System Partition so we can label its FSInfo entry as such. It's important to note that multiple ESPs may be deteced, e.g if the user is booting from a memory stick
+    // but also has a ESP on their primary hard disk. Matching the device handle of the boot slice to the partition signature of the slice is a reliable way to ensure we found the correct ESP, as opposed to searching for the ESP magic GUID
     let efi_sys_handle = BootServices::handle_protocol::<LoadedImageProtocol>(crate::libuefi::IMAGE_HANDLE.load(core::sync::atomic::Ordering::SeqCst)).device_handle;
 
 
     // Get a list of handles that support the BlockIOProtocol. This list includes every storage media device + their partitions.
     let handles = BootServices::locate_handle_by_protocol::<BlockIOProtocol>();
     
-    // Iterate through the handles, looking specifically for the Hard Drive Device Path node. This specific node indicates that the handle belongs to a slice
-    let mut fs_info: Vec<FSInfo> = Vec::new();
+    // Iterate through the handles, looking specifically for the Hard Drive Device Path node. The presence of this node indicates that the handle belongs to a slice
+    let mut slice_info: Vec<SliceInfo> = Vec::new();
 
     for i in 0..handles.len() {
         let mut node = BootServices::handle_protocol::<DevicePathProtocol>(handles[i] as *const usize);
@@ -210,11 +247,11 @@ pub fn init() {
             
                     // See if we found the ESP or not
                     if handles[i] == efi_sys_handle as usize {
-                        fs_info.push(FSInfo::new(guid, handles[i] as *const usize, FilesystemType::FAT, true));
+                        slice_info.push(SliceInfo::new(guid, handles[i] as *const usize, FilesystemType::FAT, true));
                         ldrprintln!("Found EFI System Partion with GUID: {}", guid.as_string());
                     }
                     else {
-                        fs_info.push(FSInfo::new(guid, handles[i] as *const usize, detect_fs_type(guid), false));
+                        slice_info.push(SliceInfo::new(guid, handles[i] as *const usize, detect_fs_type(guid), false));
                         ldrprintln!("Found slice with GUID: {}", guid.as_string());
                     }
                 }
@@ -226,6 +263,6 @@ pub fn init() {
         }
     }
 
-    assert!(fs_info.is_empty() == false);
-    unsafe { SLICE_ENTRIES = fs_info; }
+    assert!(slice_info.is_empty() == false);
+    unsafe { SLICE_ENTRIES = slice_info; }
 }
