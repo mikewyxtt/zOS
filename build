@@ -84,21 +84,21 @@ EOF
 	rm -Rf /tmp/zOS_build
 }
 
-build() {
+do_build() {
 	for app in "${APPS[@]}"; do
-		sh $app/pkgbuild.sh build
+		sh $app/pkgbuild.sh do_build
 	done
 }
 
-build_install() {
+do_install() {
 	for app in "${APPS[@]}"; do
-		sh $app/pkgbuild.sh build_install $1
+		sh $app/pkgbuild.sh do_install $1
 	done
 }
 
-clean() {
+do_clean() {
 	for app in "${APPS[@]}"; do
-		sh $app/pkgbuild.sh clean
+		sh $app/pkgbuild.sh do_clean
 	done
 }
 
@@ -113,14 +113,14 @@ usage() {
 
 
 if [ $# -eq 0 ]; then
-	build
+	do_build
 
 elif [ $# -eq 1 ]; then
 	if [ "$1" = "install" ]; then
-		build_install
+		do_install
 
 	elif [ "$1" = "clean" ]; then
-		clean
+		do_clean
 
 	elif [ "$1" = "release" ]; then
 		release

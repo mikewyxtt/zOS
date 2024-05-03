@@ -2,17 +2,17 @@
 PKGNAME="loader"
 VERSION="0.0.0"
 
-build() {
+do_build() {
     echo Building $PKGNAME $VERSION
 
     cargo build --verbose --target=x86_64-unknown-uefi
 }
 
-clean() {
+do_clean() {
     cargo clean
 }
 
-build_install() {
+build_do_install() {
     return
 }
 

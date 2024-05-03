@@ -2,17 +2,17 @@
 PKGNAME="hello"
 VERSION="0.0.0"
 
-build() {
+do_build() {
     echo Building $PKGNAME $VERSION
 
     cargo build --verbose --target=$TARGET_ARCH
 }
 
-clean() {
+do_clean() {
     cargo clean
 }
 
-build_install() {
+build_do_install() {
     echo
     cp target/x86_64-unknown-none/debug/hello $1/hello.zxt
 }
