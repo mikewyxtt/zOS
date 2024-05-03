@@ -41,14 +41,11 @@ impl Default for Config {
 pub fn parse_cfg() -> Config {
     let mut config = Config::default();
 
-    let mut f = File::open(fs::get_esp_guid(), "/EFI/BOOT/ZOS/LOADER.CFG");
+    let f = File::open(fs::get_esp_guid(), "/EFI/BOOT/ZOS/LOADER.CFG");
+    let s = f.read_to_string();
 
-    let mut eof = false;
-    let mut line: String;
-
-    while !eof {
-        (line, eof) = f.readln();
-        let (key, value) = parse_key_value_pair(line.as_str());
+    for line in s.lines() {
+        let (key, value) = parse_key_value_pair(line);
 
         match key.as_str() {
             "root" => {
