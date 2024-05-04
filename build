@@ -52,7 +52,7 @@ EOF
 	do_install /tmp/zOS_build/rootfs
 
 	# We format the partition and copy files onto it in the same go
-	mkfs.ext4 /tmp/zOS_build/rootfs.img
+	mkfs.ext4 -d /tmp/zOS_build/rootfs /tmp/zOS_build/rootfs.img
 
 
 	########################
