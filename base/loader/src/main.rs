@@ -24,6 +24,9 @@
 #![feature(strict_provenance)]
 #![test_runner(crate::test_runner)]
 
+
+
+
 extern crate alloc;
 
 #[macro_use]
@@ -33,19 +36,17 @@ mod drivers;
 mod libuefi;
 
 use core::panic::PanicInfo;
-use alloc::vec;
-use alloc::vec::Vec;
 use config::parse_cfg;
-use debugutils::hexdump_blocks;
 use drivers::*;
+// use debugutils::hexdump_blocks;
 
 
 #[no_mangle]
 extern "win64" fn efi_main(efi_image_handle: *const usize, efi_system_table: *const libuefi::SystemTable) -> ! {
     libuefi::init(efi_image_handle, efi_system_table);
     console::clear();
-    disk::init();
-    fs::init();
+    disk::start();
+    fs::start();
 
     let cfg = parse_cfg();
 
