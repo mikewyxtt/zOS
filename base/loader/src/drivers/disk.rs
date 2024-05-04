@@ -99,6 +99,6 @@ fn probe_disks() {
 }
 
 
-pub fn init(){
+pub fn start(){
     probe_disks();
 }
