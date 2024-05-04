@@ -19,8 +19,10 @@
 
 #![allow(dead_code)]
 
+
+use core::fmt::{Display, Formatter};
 use alloc::{format, string::{String, ToString}, vec::Vec};
-use crate::libuefi::{bootservices::BootServices, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}, file::{self, EFI_File, FileInfo}, filesystem::SimpleFilesystem, loaded_image::LoadedImageProtocol}, GUID};
+use crate::{extfs, libuefi::{bootservices::BootServices, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}, file::FileInfo, filesystem::SimpleFilesystem, loaded_image::LoadedImageProtocol}, GUID}};
 
 
 static mut SLICE_ENTRIES: Vec<SliceInfo> = Vec::new();
@@ -31,8 +33,14 @@ pub const EOF: i8 = -1;
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum FilesystemType {
     FAT,
-    XFS,
+    EXT,
     UNKNOWN,
+}
+
+impl Display for FilesystemType {
+    fn fmt(&self, _: &mut Formatter<'_>) -> Result<(), core::fmt::Error> { 
+        todo!()
+    }
 }
 
 
@@ -77,27 +85,28 @@ impl File {
 
                 // First we need to access the filesystem protocol to open the root directory
                 let filesys_protocol = BootServices::handle_protocol::<SimpleFilesystem>(slice.handle);
-                let file = filesys_protocol.open_volume();
+                let efi_file = filesys_protocol.open_volume();
               
                 // Now we can open the file
-                let file = file.open(path.as_str(), 1, None);
-                let info = file.get_info(FileInfo::guid());                
+                let efi_file = efi_file.open(path.as_str(), 1, None);
+                let info = efi_file.get_info(FileInfo::guid());                
 
-                file.close();
+                efi_file.close();
 
                 return Self {
                     slice:      slice.guid,
-                    path,
-                    filesize: info.file_size,
+                    path:       path,
+                    filesize:   info.file_size,
                 }
             }
 
-            FilesystemType::XFS => {
+            FilesystemType::EXT => {
                 let filesize = 0;
+
                 return Self {
                     slice:      slice.guid,
-                    path: path.to_string(),
-                    filesize: filesize,
+                    path:       path.to_string(),
+                    filesize:   filesize,
                 }
             }
 
@@ -135,7 +144,7 @@ impl File {
 
             }
 
-            FilesystemType::XFS => {
+            FilesystemType::EXT => {
                 //
                 0
             }
@@ -167,6 +176,7 @@ impl File {
 
 
 
+
 /// Finds a slice by GUID
 fn find_slice(guid: GUID) -> SliceInfo {
     unsafe {
@@ -181,8 +191,6 @@ fn find_slice(guid: GUID) -> SliceInfo {
 }
 
 
-
-
 /// Returns the GUID partition signature of the ESP
 pub fn get_esp_guid() -> GUID {
     unsafe {
@@ -191,6 +199,7 @@ pub fn get_esp_guid() -> GUID {
                 return slice.guid
             }
         }
+        
     }
 
     panic!("FS error: Could not find EFI System Partition. Halting.");
@@ -201,15 +210,19 @@ pub fn get_esp_guid() -> GUID {
 
 /// Detects the filesystem of the slice
 fn detect_fs_type(guid: GUID) -> FilesystemType {
-    FilesystemType::UNKNOWN
+    if extfs::detect(guid) {
+        return FilesystemType::EXT;
+    }
+    else {
+        return FilesystemType::UNKNOWN;
+    }
 }
 
 
 
 
-/// Initialize the filesystem driver
-pub fn init() {
-
+/// Start the filesystem driver
+pub fn start() {
     // Get the EFI_HANDLE of the slice containing the EFI System Partition so we can label its FSInfo entry as such. It's important to note that multiple ESPs may be deteced, e.g if the user is booting from a memory stick
     // but also has a ESP on their primary hard disk. Matching the device handle of the boot slice to the partition signature of the slice is a reliable way to ensure we found the correct ESP, as opposed to searching for the ESP magic GUID
     let efi_sys_handle = BootServices::handle_protocol::<LoadedImageProtocol>(crate::libuefi::IMAGE_HANDLE.load(core::sync::atomic::Ordering::SeqCst)).device_handle;
@@ -252,6 +265,6 @@ pub fn init() {
         }
     }
 
-    assert!(slice_info.is_empty() == false);
-    unsafe { SLICE_ENTRIES = slice_info; }
+    assert_ne!(slice_info.is_empty(), true);
+    unsafe {SLICE_ENTRIES = slice_info.clone(); }
 }
