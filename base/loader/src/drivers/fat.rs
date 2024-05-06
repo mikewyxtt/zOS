@@ -156,6 +156,7 @@ fn detect_fat_type(bpb: &BiosParameterBlock) -> FATType {
 
 
 
+/// Finds the first sector of cluster 'cluster_number
 const fn find_first_sector_of_cluster(bpb: &BiosParameterBlock, cluster_number: u32) -> u32 {
     let root_dir_sectors = ((bpb.rootentcnt * 32) + (bpb.bytspersec - 1)) / bpb.bytspersec;
 
