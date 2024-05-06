@@ -91,6 +91,45 @@ impl BiosParameterBlock {
 }
 
 
+trait ToDOSFilenameExt {
+    /// Converts self (should be str) into an 8.3 DOS style filename. e.g 'LOADER.CFG' -> "LOADER  CFG"
+    fn to_dos_filename(&self) -> [u8; 11];
+}
+impl ToDOSFilenameExt for str {
+    fn to_dos_filename(&self) -> [u8; 11] {
+        assert!(self.len() <= 11, "Long filenames are not supported by the zOS FAT driver.");
+
+        // Create an empty filename, filled with spaces
+        let mut filename8_3 = [0x20u8; 11];
+    
+        // If its a file name
+        if self.contains('.') && self.len() > 1 {
+            let (filename, ext) = self.split_once('.').unwrap();
+    
+            for (i, b) in filename.as_bytes().iter().enumerate() {
+                filename8_3[i] = *b;
+            }
+    
+            for (i, b) in ext.as_bytes().iter().enumerate() {
+                filename8_3[8 + i] = *b;
+            }
+    
+            return filename8_3;
+    
+        }
+    
+        else {
+            for (i, b) in self.as_bytes().iter().enumerate() {
+                filename8_3[i] = *b;
+            }
+    
+            return filename8_3;
+        }
+    }
+}
+
+
+
 
 /// Detects whether or not the slice contains a FAT filesystem of any kind.
 ///
@@ -212,40 +251,6 @@ const fn is_eof(fat_type: FATType, fat_content: u32) -> bool {
 
 
 
-/// Converts a filename in regular form to an 8.3 DOS style filename. e.g 'LOADER.CFG' -> "LOADER  CFG"
-fn conv_to_8_3_name(name: &str) -> [u8; 11] {
-    assert!(name.len() <= 11, "Long filenames are not supported by the zOS FAT driver.");
-
-    // Create an empty filename, filled with spaces
-    let mut filename8_3 = [0x20u8; 11];
-
-    // If its a file name
-    if name.contains('.') && name.len() > 1 {
-        let (filename, ext) = name.split_once('.').unwrap();
-
-        for (i, b) in filename.as_bytes().iter().enumerate() {
-            filename8_3[i] = *b;
-        }
-
-        for (i, b) in ext.as_bytes().iter().enumerate() {
-            filename8_3[8 + i] = *b;
-        }
-
-        return filename8_3;
-
-    }
-
-    else {
-        for (i, b) in name.as_bytes().iter().enumerate() {
-            filename8_3[i] = *b;
-        }
-
-        return filename8_3;
-    }
-}
-
-
-
 
 /// Traverses the filesystems direcrory entries in search of 'path'. Not compatible with long directory entries as loader.cfg is less than 11 bytes..
 fn find_file(slice: GUID, path: &str, bpb: &BiosParameterBlock) -> Result<DirectoryEntry, ()> {
@@ -257,7 +262,6 @@ fn find_file(slice: GUID, path: &str, bpb: &BiosParameterBlock) -> Result<Direct
 
     // Iterate thru each part of the path
     for path_entry in path.split("/") {
-        let path_entry = conv_to_8_3_name(path_entry);
 
         // Load the directories
         let dir_entries = {
@@ -276,7 +280,7 @@ fn find_file(slice: GUID, path: &str, bpb: &BiosParameterBlock) -> Result<Direct
             if entry.name[0] == 0xE5 || entry.name[0] == 0x00 {
                 break;
             }
-            else if entry.name == path_entry {
+            else if entry.name == path_entry.to_dos_filename() {
                 // Found the file!
                 if entry.attr != 0x10 {
                     return Ok(entry);
