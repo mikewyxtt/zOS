@@ -48,6 +48,8 @@ extern "win64" fn efi_main(efi_image_handle: *const usize, efi_system_table: *co
     disk::start();
     fs::start();
 
+    ldrprintln!("Entered efi_main()..");
+
     let cfg = parse_cfg();
 
 
