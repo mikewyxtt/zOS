@@ -21,5 +21,6 @@
 pub mod console;
 pub mod disk;
 pub mod extfs;
+pub mod fat;
 pub mod fs;
 pub mod uefi;
