@@ -117,7 +117,7 @@ pub fn detect(slice: GUID) -> bool {
 }
 
 
-
+/// Uses the official calculation from Microsoft to determine the FAT type
 fn detect_fat_type(bpb: &BiosParameterBlock) -> FATType {
     let root_dir_sectors = ((bpb.rootentcnt * 32) + (bpb.bytspersec - 1)) / bpb.bytspersec;
 
@@ -211,7 +211,7 @@ const fn is_eof(fat_type: FATType, fat_content: u32) -> bool {
 
 
 
-
+/// Converts a filename in regular form to an 8.3 DOS style filename. e.g 'LOADER.CFG' -> "LOADER  CFG"
 fn conv_to_8_3_name(name: &str) -> [u8; 11] {
     assert!(name.len() <= 11, "Long filenames are not supported by the zOS FAT driver.");
 
@@ -246,7 +246,7 @@ fn conv_to_8_3_name(name: &str) -> [u8; 11] {
 
 
 
-
+/// Traverses the filesystems direcrory entries in search of 'path'. Not compatible with long directory entries as loader.cfg is less than 11 bytes..
 fn find_file(slice: GUID, path: &str, bpb: &BiosParameterBlock) -> Result<DirectoryEntry, ()> {
     let path = path.to_uppercase();
     let path = path.trim_start_matches("/");
@@ -294,7 +294,7 @@ fn find_file(slice: GUID, path: &str, bpb: &BiosParameterBlock) -> Result<Direct
 
 
 
-
+/// Reads bytes from the filesystem into 'buffer'
 unsafe fn read_raw(file: &File, count: usize, buffer: *mut u8) {
     let bpb = {
         let mut buffer: Box<BiosParameterBlock> = Box::new(BiosParameterBlock::zeroed());
@@ -315,7 +315,7 @@ unsafe fn read_raw(file: &File, count: usize, buffer: *mut u8) {
 
 
 
-
+/// Opens a file on the FAT filesystem
 pub fn open(slice: GUID, path: &str) -> File {
     let bpb = {
         let mut buffer: Box<BiosParameterBlock> = Box::new(BiosParameterBlock::zeroed());
