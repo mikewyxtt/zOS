@@ -31,7 +31,7 @@ enum FATType {
 }
 
 #[repr(C, packed)]
-struct BiosParameterBlock {
+struct BIOSParameterBlock {
     jmp_boot:               [u8; 3],
     pub oem_name:           [u8; 8],
     pub bytspersec:         u16,
@@ -83,7 +83,7 @@ struct DirectoryEntry {
     pub filesize:           u32,
 }
 
-impl BiosParameterBlock {
+impl BIOSParameterBlock {
     pub fn zeroed() -> Self {
         unsafe { core::mem::zeroed::<Self>() }
     }
@@ -156,7 +156,7 @@ pub fn detect(slice: GUID) -> bool {
 
 
 /// Uses the official calculation from Microsoft to determine the FAT type
-fn detect_fat_type(bpb: &BiosParameterBlock) -> FATType {
+fn detect_fat_type(bpb: &BIOSParameterBlock) -> FATType {
     let root_dir_sectors = ((bpb.rootentcnt * 32) + (bpb.bytspersec - 1)) / bpb.bytspersec;
 
     let fat_size: u32;
@@ -195,7 +195,7 @@ fn detect_fat_type(bpb: &BiosParameterBlock) -> FATType {
 
 
 /// Finds the first sector of cluster 'cluster_number
-const fn find_first_sector_of_cluster(bpb: &BiosParameterBlock, cluster_number: u32) -> u32 {
+const fn find_first_sector_of_cluster(bpb: &BIOSParameterBlock, cluster_number: u32) -> u32 {
     let root_dir_sectors = ((bpb.rootentcnt * 32) + (bpb.bytspersec - 1)) / bpb.bytspersec;
 
     let fat_size: u32;
@@ -252,7 +252,7 @@ const fn is_eof(fat_type: FATType, fat_content: u32) -> bool {
 
 
 /// Traverses the filesystems direcrory entries in search of 'path'. Not compatible with long directory entries as loader.cfg is less than 11 bytes..
-fn find_file(slice: GUID, path: &str, bpb: &BiosParameterBlock) -> Result<DirectoryEntry, ()> {
+fn find_file(slice: GUID, path: &str, bpb: &BIOSParameterBlock) -> Result<DirectoryEntry, ()> {
     let path = path.to_uppercase();
     let path = path.trim_start_matches("/");
 
@@ -311,8 +311,8 @@ fn find_file(slice: GUID, path: &str, bpb: &BiosParameterBlock) -> Result<Direct
 /// If *buffer* is a null ptr, this fn returns the buffer size needed to contain the file. Otherwise, it returns None.
 pub unsafe fn read_bytes_raw(slice: GUID, path: &str, buffer: *mut u8) -> Option<u64>{
     let bpb = {
-        let mut buffer: Box<BiosParameterBlock> = Box::new(BiosParameterBlock::zeroed());
-        let _ = unsafe { disk::read_bytes_raw(slice, 0, size_of::<BiosParameterBlock>(), (buffer.as_mut() as *mut BiosParameterBlock).cast()) };
+        let mut buffer: Box<BIOSParameterBlock> = Box::new(BIOSParameterBlock::zeroed());
+        let _ = unsafe { disk::read_bytes_raw(slice, 0, size_of::<BIOSParameterBlock>(), (buffer.as_mut() as *mut BIOSParameterBlock).cast()) };
 
         buffer
     };
