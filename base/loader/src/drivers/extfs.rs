@@ -22,10 +22,9 @@ use alloc::boxed::Box;
 
 use crate::{libuefi::GUID, uefi};
 use core::mem::size_of;
-use super::fs::File;
 
 #[repr(C, packed)]
-struct Superblock {
+struct Ext4Superblock {
     pub inodes_count:               u32,
     pub blocks_count_lo:            u32,
     pub r_blocks_count_lo:          u32,
@@ -128,7 +127,7 @@ struct Superblock {
 
 
 #[repr(C, packed)]
-struct BlockGroupDescriptor {
+struct Ext4BlockGroupDescriptor {
     pub block_bitmap_lo:            u32,
     pub inode_bitmap_lo:            u32,
     pub inode_table_lo:             u32,
@@ -155,7 +154,7 @@ struct BlockGroupDescriptor {
 }
 
 #[repr(C, packed)]
-struct INode {
+struct Ext4INode {
     pub mode:                       u16,
     pub uid:                        u16,
     pub size_lo:                    u32,
@@ -195,12 +194,24 @@ struct Ext4DirectoryEntry {
     pub name:                       [u8],
 }
 
+// trait DiskDriver {
+//     fn open();
+//     fn close();
+//     fn read_bytes_raw();
+// }
+
+// struct Driver;
+
+// impl DriverTrait for Driver {
+//     //
+// }
+
 
 /// Scans the slice to determine if it contains an Ext filesystem. Returns true if it is.
 pub fn detect(slice: GUID) -> bool {
         let sb = {
-        let mut buff: Box<Superblock> = unsafe { Box::new(core::mem::zeroed()) };
-        let _ = unsafe { uefi::disk::read_bytes_raw(slice, 2, size_of::<Superblock>(), (buff.as_mut() as *mut Superblock).cast()) };
+        let mut buff: Box<Ext4Superblock> = unsafe { Box::new(core::mem::zeroed()) };
+        let _ = unsafe { uefi::disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()) };
 
         buff
     };
@@ -214,18 +225,7 @@ pub fn detect(slice: GUID) -> bool {
     }
 }
 
-
-pub fn open(slice: GUID, path: &str) -> File {
-    // Read the superblock
-    let mut sb: Box<Superblock> = unsafe { Box::new(core::mem::zeroed()) };
-    let _ = unsafe { uefi::disk::read_bytes_raw(slice, 2, size_of::<Superblock>(), (sb.as_mut() as *mut Superblock).cast()) };
-    
-    // Read the first inode
-
-
-    File::new(slice, path, 0, read_raw)
+fn find_file() {
+    //
 }
 
-unsafe fn read_raw(file: &File, count: usize, buffer: *mut u8) {
-
-}

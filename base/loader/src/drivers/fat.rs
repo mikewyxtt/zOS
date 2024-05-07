@@ -22,7 +22,6 @@
 use core::mem::size_of;
 use alloc::{boxed::Box, vec::Vec, vec};
 use crate::{libuefi::GUID, uefi::disk};
-use super::fs::File;
 
 #[derive(PartialEq, Eq)]
 enum FATType {
@@ -257,8 +256,16 @@ fn find_file(slice: GUID, path: &str, bpb: &BiosParameterBlock) -> Result<Direct
     let path = path.to_uppercase();
     let path = path.trim_start_matches("/");
 
-    // Start at the root directory
-    let mut cluster_num = bpb.rootclus;
+    // Start at the root directory. It's location varies depending on the FAT type
+    let mut cluster_num;
+
+    match detect_fat_type(bpb) {
+        FATType::FAT32 => {
+            cluster_num = bpb.rootclus;
+        }
+
+        _ => { panic!("FAT12/16 not implemented.") }
+    }
 
     // Iterate thru each part of the path
     for path_entry in path.split("/") {
@@ -299,29 +306,10 @@ fn find_file(slice: GUID, path: &str, bpb: &BiosParameterBlock) -> Result<Direct
 
 
 
-/// Reads bytes from the filesystem into 'buffer'
-unsafe fn read_raw(file: &File, count: usize, buffer: *mut u8) {
-    let bpb = {
-        let mut buffer: Box<BiosParameterBlock> = Box::new(BiosParameterBlock::zeroed());
-        let _ = unsafe { disk::read_bytes_raw(file.slice, 0, size_of::<BiosParameterBlock>(), (buffer.as_mut() as *mut BiosParameterBlock).cast()) };
-
-        buffer
-    };
-
-    // NOTE: For the sake of simplicity, i skipped implementing the ability to parse thru the FAT entires to read a big file, as this is literally only used for loader.cfg
-    let cluster_size = bpb.secperclus as u16 * bpb.bytspersec as u16;
-    assert!(count < cluster_size.into(), "Reading files larger than one FAT cluster({} bytes) from FAT slices is not supported by the zOS FAT driver.", cluster_size);
-
-    
-    let entry = find_file(file.slice, &file.path, bpb.as_ref()).unwrap();
-    let lba = find_first_sector_of_cluster(&bpb, entry.fst_clus_lo.into());
-    let _ = unsafe { disk::read_bytes_raw(file.slice, lba.into(), count, buffer) };
-}
-
-
-
-/// Opens a file on the FAT filesystem
-pub fn open(slice: GUID, path: &str) -> File {
+/// Reads a files entire contents into *buffer*
+///
+/// If *buffer* is a null ptr, this fn returns the buffer size needed to contain the file. Otherwise, it returns None.
+pub unsafe fn read_bytes_raw(slice: GUID, path: &str, buffer: *mut u8) -> Option<u64>{
     let bpb = {
         let mut buffer: Box<BiosParameterBlock> = Box::new(BiosParameterBlock::zeroed());
         let _ = unsafe { disk::read_bytes_raw(slice, 0, size_of::<BiosParameterBlock>(), (buffer.as_mut() as *mut BiosParameterBlock).cast()) };
@@ -329,19 +317,21 @@ pub fn open(slice: GUID, path: &str) -> File {
         buffer
     };
 
-    match detect_fat_type(&bpb) {
-        FATType::FAT32 => {
-            
+    
+    let entry = find_file(slice, path, bpb.as_ref()).unwrap();
+    let filesize = entry.filesize as u64;
 
-            let f = find_file(slice, path, bpb.as_ref()).expect("File not found.");
+    if buffer.is_null() {
+        return Some(filesize);
+    }
+    else {
+        // NOTE: For the sake of simplicity, i skipped implementing the ability to parse thru the FAT entires to read a big file, as this driver is literally only used to read loader.cfg on UEFI systems..
+        let cluster_size = bpb.secperclus as u16 * bpb.bytspersec as u16;
+        assert!(filesize < cluster_size.into(), "Reading files larger than one FAT cluster({} bytes) from FAT slices is not supported by the zOS FAT driver.", cluster_size);
+        
+        let lba = find_first_sector_of_cluster(&bpb, entry.fst_clus_lo.into());
+        let _ = unsafe { disk::read_bytes_raw(slice, lba.into(), filesize as usize, buffer) };
 
-            let filesize = f.filesize;
-            return File::new(slice, path, filesize.into(), read_raw);
-            
-        }
-
-        _ => {
-            panic!();
-        }
+        return None;
     }
 }

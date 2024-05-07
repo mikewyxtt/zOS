@@ -20,10 +20,8 @@
 #![allow(dead_code)]
 
 
-use alloc::{string::{String, ToString}, vec::Vec};
+use alloc::{string::String, vec::Vec, vec};
 use crate::{extfs, fat, libuefi::{bootservices::BootServices, protocol::{device_path::{DevicePathProtocol, HardDriveDevicePath}, loaded_image::LoadedImageProtocol}, GUID}};
-
-pub const EOF: i8 = -1;
 
 
 
@@ -32,77 +30,6 @@ enum FilesystemType {
     FAT,
     EXT,
     UNKNOWN,
-}
-
-
-#[derive(PartialEq)]
-pub struct File {
-    pub slice:              GUID,
-    pub path:               String,
-    pub filesize:           u64,
-    _read_raw:              unsafe fn(&Self, usize, *mut u8),
-}
-
-enum DriverInfo {
-    FAT {
-        first_cluster_number:   u32,
-        clusters:               Vec<u32>,
-    }
-}
-
-
-impl File {
-    pub fn new(slice: GUID, path: &str, filesize: u64, read_raw: unsafe fn(&Self, usize, *mut u8)) -> Self {
-        Self {
-            slice,
-            path: path.to_string(),
-            filesize,
-            _read_raw:  read_raw,
-        }
-    }
-
-    /// Opens a file, reading its entire contents into a vector
-    pub fn open(slice: GUID, path: &str) -> Self {
-        match detect_fs_type(slice) {
-            FilesystemType::FAT => {
-                return fat::open(slice, path);
-            }
-
-            FilesystemType::EXT => {
-                return extfs::open(slice, path);
-            }
-
-            FilesystemType::UNKNOWN => {
-                panic!("Trying to open \"{path}\" on slice with GUID {} failed: Unknown filesystem \nHalting.", slice.as_string())
-            }
-        }
-    }
-
-    /// Reads 'count' bytes from the file into 'buffer'. Returns the amount of bytes that were read
-    pub unsafe fn read_raw(&self, count: usize, buffer: *mut u8) -> usize {
-        assert!(count <= self.filesize as usize);
-        
-        (self._read_raw)(&self, count, buffer);
-
-        count
-    }
-
-    /// Reads the entire contents of the file into a String
-    pub fn read_to_string(&self) -> String {
-        let mut s = String::new();
-
-        let mut contents = Vec::with_capacity(self.filesize as usize);
-        unsafe {
-            self.read_raw(self.filesize as usize, contents.as_mut_ptr());
-            contents.set_len(self.filesize as usize);
-        }
-
-        for b in &contents {
-            s.push(*b as char);
-        }
-
-        s
-    }
 }
 
 
@@ -149,6 +76,48 @@ fn detect_fs_type(guid: GUID) -> FilesystemType {
     }
 }
 
+
+
+/// Reads a files entire contents into *buffer*
+///
+/// If *buffer* is a null ptr, this fn returns the buffer size needed to contain the file. Otherwise, it returns None.
+pub unsafe fn read_file_raw(slice: GUID, path: &str, buffer: *mut u8) -> Option<u64> {
+    match detect_fs_type(slice) {
+        FilesystemType::FAT => {
+            return fat::read_bytes_raw(slice, path, buffer);
+        }
+
+        FilesystemType::EXT => {
+            // return extfs::read_bytes_raw(slice, path, buffer);
+            return None;
+        }
+
+        FilesystemType::UNKNOWN => {
+            panic!("Trying to open \"{path}\" on slice with GUID {} failed: Unknown filesystem \nHalting.", slice.as_string())
+        }
+    }
+}
+
+
+
+/// Reads the entire contents of the file into a String
+pub fn read_to_string(slice: GUID, path: &str) -> String {
+    let filesize = unsafe { read_file_raw(slice, path, core::ptr::null_mut()).unwrap() };
+    let contents: Vec<u8> = { 
+        let mut buffer: Vec<u8> = vec![0; filesize.try_into().unwrap()];
+        unsafe { read_file_raw(slice, path, buffer.as_mut_ptr()) };
+
+        buffer
+    };
+
+    let mut s = String::new();
+
+    for b in &contents {
+        s.push(*b as char);
+    }
+
+    s
+}
 
 
 
