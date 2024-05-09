@@ -1,4 +1,4 @@
-/*  allocator.rs - Basic allocator
+/*  mem.rs - UEFI memory management interface
  *
  *  zOS  --  Advanced *NIX System
  *  Copyright (C) 2024  Free Software Foundation, Inc.
@@ -17,21 +17,25 @@
  *  along with zOS. If not, see <http://www.gnu.org/licenses/>.
  */
 
+use core::alloc::Layout;
 
-use core::alloc::{GlobalAlloc, Layout};
+use super::libuefi::bootservices::{BootServices, MemoryType};
 
-use crate::firmware;
 
-#[global_allocator]
-static ALLOCATOR: Allocator = Allocator;
-struct Allocator;
+pub unsafe fn alloc(layout: Layout) -> *mut u8 {
+    let buffer: *mut *mut usize = core::ptr::NonNull::<usize>::dangling().as_ptr() as *mut *mut usize;
 
-unsafe impl GlobalAlloc for Allocator {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        firmware::mem::alloc(layout)
+    let efi_status = BootServices::allocate_pool(MemoryType::LoaderData, layout.size(), buffer);
+    if efi_status != 0 {
+        panic!("Could not allocate heap memory.\nEFI_STATUS: {}", efi_status);
     }
 
-    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
-        firmware::mem::dealloc(ptr);
+    (*buffer) as *mut u8
+}
+
+pub unsafe fn dealloc(ptr: *mut u8) {
+    let efi_status = BootServices::free_pool(ptr as *const usize);
+    if efi_status != 0 {
+        panic!("Could not deallocate heap memory.\nEFI_STATUS: {}", efi_status);
     }
 }

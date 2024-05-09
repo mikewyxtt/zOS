@@ -20,7 +20,9 @@
 #![allow(dead_code)]
 
 
-use super::{super::GUID, EFIProtocol};
+use super::EFIProtocol;
+use crate::uuid::GUID;
+
 
 
 #[repr(C, packed)]

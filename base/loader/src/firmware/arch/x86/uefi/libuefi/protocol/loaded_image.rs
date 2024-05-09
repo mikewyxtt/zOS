@@ -20,8 +20,10 @@
 #![allow(dead_code)]
 
 use super::EFIProtocol;
-use super::{super::general::GUID, device_path::DevicePathProtocol};
+use super::device_path::DevicePathProtocol;
 use super::super::{SystemTable, bootservices::MemoryType};
+use crate::uuid::GUID;
+
 
 // Each loaded image has an image handle that supports EFI_LOADED_IMAGE_PROTOCOL. When an image is
 // started, it is passed the image handle for itself. The image can use the handle to obtain its relevant image data stored

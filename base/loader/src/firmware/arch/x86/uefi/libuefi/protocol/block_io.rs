@@ -20,7 +20,8 @@
 #![allow(dead_code)]
 
 use core::ffi::c_void;
-use super::{super::GUID, EFIProtocol};
+use super::EFIProtocol;
+use crate::uuid::GUID;
 
 #[repr(C)]
 pub struct BlockIOProtocol {

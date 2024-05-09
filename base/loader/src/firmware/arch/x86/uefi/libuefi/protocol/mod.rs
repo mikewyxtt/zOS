@@ -25,5 +25,5 @@ pub mod filesystem;
 pub mod simple_text_output;
 
 pub trait EFIProtocol {
-    fn guid() -> super::GUID;
+    fn guid() -> crate::uuid::GUID;
 }

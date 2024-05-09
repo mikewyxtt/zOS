@@ -18,7 +18,7 @@
  */
 
 use alloc::string::{String, ToString};
-use crate::{fs, ldrprintln, libuefi::GUID};
+use crate::{firmware, fs, ldrprintln, uuid::GUID};
 
 
 pub struct Config {
@@ -41,7 +41,7 @@ impl Default for Config {
 pub fn parse_cfg() -> Config {
     let mut config = Config::default();
 
-    let s = fs::read_to_string(fs::get_esp_guid(), "/EFI/BOOT/ZOS/LOADER.CFG");
+    let s = fs::read_to_string(firmware::misc::get_esp_guid(), "/EFI/BOOT/ZOS/LOADER.CFG");
 
     for line in s.lines() {
         let (key, value) = parse_key_value_pair(line);

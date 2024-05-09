@@ -21,7 +21,9 @@
 use alloc::{boxed::Box, vec, vec::Vec};
 use debugutils::hexdump;
 
-use crate::{libuefi::GUID, uefi::{self, disk}};
+// use crate::{libuefi::GUID, uefi::{self, disk}};
+use crate::uuid::GUID;
+use crate::firmware::disk;
 use core::mem::size_of;
 
 
@@ -242,7 +244,7 @@ impl Ext4INode {
 pub fn detect(slice: GUID) -> bool {
     let sb = {
         let mut buff: Box<Ext4Superblock> = unsafe { Box::new(core::mem::zeroed()) };
-        let _ = unsafe { uefi::disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()) };
+        let _ = unsafe { disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()) };
 
         buff
     };
@@ -269,7 +271,7 @@ fn find_file(slice: GUID, path: &str) -> Ext4INode {
     // bring superblock into memory
     let sb = {
         let mut buff: Box<Ext4Superblock> = Box::new(Ext4Superblock::zeroed());
-        let _ = unsafe { uefi::disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()) };
+        let _ = unsafe { disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()) };
 
         buff
     };
@@ -279,7 +281,7 @@ fn find_file(slice: GUID, path: &str) -> Ext4INode {
         let mut buff: Vec<Ext4BlockGroupDescriptor> = Vec::with_capacity(10);
         unsafe {
             buff.set_len(10);
-            let _ = uefi::disk::read_bytes_raw(slice, 8,buff.len() * size_of::<Ext4BlockGroupDescriptor>(), buff.as_mut_ptr() as *mut u8);
+            let _ = disk::read_bytes_raw(slice, 8,buff.len() * size_of::<Ext4BlockGroupDescriptor>(), buff.as_mut_ptr() as *mut u8);
         }
 
         buff
@@ -316,7 +318,7 @@ fn find_file(slice: GUID, path: &str) -> Ext4INode {
 
         // Read the inode table from the disk into the buffer, passing ownership of the allocated memory to the Vec
         unsafe {
-            let _ = uefi::disk::read_bytes_raw(slice, inode_table_lba, inode_table_size * sb.inode_size as usize, buffer.cast());
+            let _ = disk::read_bytes_raw(slice, inode_table_lba, inode_table_size * sb.inode_size as usize, buffer.cast());
             let buffer = Vec::from_raw_parts(buffer, inode_table_size, inode_table_size);
 
             buffer

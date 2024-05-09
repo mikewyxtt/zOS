@@ -19,7 +19,7 @@
 
  #![allow(dead_code)]
 
-use crate::libuefi::GUID;
+use crate::uuid::GUID;
 
 use super::{file::EFI_File, EFIProtocol};
 

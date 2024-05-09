@@ -1,4 +1,4 @@
-/*  mod.rs
+/*  mod.rs - ()
  *
  *  zOS  --  Advanced *NIX System
  *  Copyright (C) 2024  Free Software Foundation, Inc.
@@ -17,5 +17,10 @@
  *  along with zOS. If not, see <http://www.gnu.org/licenses/>.
  */
 
-pub mod console;
-pub mod disk;
+
+mod arch;
+
+
+#[cfg(target_os = "uefi")]
+pub use arch::x86::uefi::*;
+

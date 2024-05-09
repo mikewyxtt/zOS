@@ -17,8 +17,9 @@
  *  along with zOS. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#![allow(dead_code)]
 
-use crate::libuefi::protocol::simple_text_output::SimpleTextOutputProtocol;
+use super::libuefi::protocol::simple_text_output::SimpleTextOutputProtocol;
 
 
 pub fn putc(c: char) {
@@ -43,4 +44,8 @@ pub fn putc(c: char) {
 
 pub fn clear() {
     SimpleTextOutputProtocol::reset();
+}
+
+pub fn init() {
+    //
 }

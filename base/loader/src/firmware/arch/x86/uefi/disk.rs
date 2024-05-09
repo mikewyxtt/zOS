@@ -22,7 +22,8 @@
 use core::ptr;
 use alloc::vec;
 use alloc::{string::{String, ToString}, vec::Vec};
-use crate::libuefi::{bootservices::BootServices, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}}, GUID};
+use super::libuefi::{bootservices::BootServices, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}}};
+use crate::uuid::GUID;
 
 
 static mut DISK_SLICE_INFO: Vec<DiskSliceInfo> = Vec::new();

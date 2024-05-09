@@ -21,7 +21,9 @@
 
 use core::mem::size_of;
 use alloc::{boxed::Box, vec::Vec, vec};
-use crate::{libuefi::GUID, uefi::disk};
+use crate::firmware::disk;
+use crate::uuid::GUID;
+
 
 #[derive(PartialEq, Eq)]
 enum FATType {

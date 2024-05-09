@@ -20,7 +20,7 @@
 
 use alloc::vec::Vec;
 
-use crate::libuefi::GUID;
+use crate::uuid::GUID;
 
 
 #[allow(non_camel_case_types)]

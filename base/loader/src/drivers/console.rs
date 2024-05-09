@@ -20,6 +20,8 @@
 
 use core::fmt::{Write, Error, self};
 
+use crate::firmware;
+
 /// Prints a formatted string with NO trailing newline to console output.
 #[macro_export]
 macro_rules! ldrprint {
@@ -37,7 +39,7 @@ macro_rules! ldrprintln {
 /// Clears the console
 pub fn clear() {
     #[cfg(target_os = "uefi")] {
-        super::uefi::console::clear();
+        firmware::console::clear();
     }
 }
 
@@ -61,9 +63,7 @@ impl Writer {
 
     /// Required for the fmt::Write trait. Writes a single byte to the console
     pub fn write_byte(&mut self, byte: u8) {
-        #[cfg(target_os = "uefi")] {
-            super::uefi::console::putc(byte.into());
-        }
+        firmware::console::putc(byte.into());
     }
 }
 

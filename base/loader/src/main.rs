@@ -26,43 +26,37 @@
 #![test_runner(crate::test_runner)]
 
 
-
-
 extern crate alloc;
 
 #[macro_use]
 mod allocator;
 mod config;
 mod drivers;
-mod libuefi;
+mod firmware;
+mod uuid;
 
 use core::panic::PanicInfo;
 use config::parse_cfg;
 use drivers::*;
-use debugutils::hexdump_blocks;
+// use debugutils::hexdump_blocks;
 
 
-#[no_mangle]
-extern "win64" fn efi_main(efi_image_handle: *const usize, efi_system_table: *const libuefi::SystemTable) -> ! {
-    libuefi::init(efi_image_handle, efi_system_table);
+fn main() {
+    drivers::start();
     console::clear();
-    disk::start();
-    fs::start();
 
-    ldrprintln!("Entered efi_main()..");
-
+    ldrprintln!("Entered main()..");
     let cfg = parse_cfg();
 
     extfs::find(cfg.rootfs, " ");
-
-
+    
     ldrprintln!("root={}", cfg.rootfs.as_string());
     ldrprintln!("resolution={}", cfg.resolution);
 
     ldrprintln!("Done. Looping.");
+
     loop {}
 }
-
 
 
 #[panic_handler]

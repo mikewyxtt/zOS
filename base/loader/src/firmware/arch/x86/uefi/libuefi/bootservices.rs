@@ -25,7 +25,9 @@ use core::ptr;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use super::{protocol::EFIProtocol, TableHeader, GUID, IMAGE_HANDLE, SYSTEM_TABLE_PTR};
+use super::{protocol::EFIProtocol, TableHeader, IMAGE_HANDLE, SYSTEM_TABLE_PTR};
+use crate::uuid::GUID;
+
 
 #[repr(C)]
 pub struct BootServices {
