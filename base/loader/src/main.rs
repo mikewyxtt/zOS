@@ -23,7 +23,7 @@
 #![feature(custom_test_frameworks)]
 #![feature(strict_provenance)]
 #![feature(allocator_api)]
-#![test_runner(crate::test_runner)]
+#![test_runner(crate::tests::test_runner)]
 
 
 extern crate alloc;
@@ -33,6 +33,7 @@ mod allocator;
 mod config;
 mod drivers;
 mod firmware;
+mod tests;
 mod uuid;
 
 use core::panic::PanicInfo;
@@ -63,13 +64,4 @@ fn main() {
 fn panic(_info: &PanicInfo) -> ! {
     ldrprintln!("{}", _info);
     loop {}
-}
-
-
-#[cfg(test)]
-pub fn test_runner(tests: &[&dyn Fn()]) {
-    ldrprintln!("Running {} tests", tests.len());
-    for test in tests {
-        test();
-    }
 }
