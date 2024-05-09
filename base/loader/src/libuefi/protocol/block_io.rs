@@ -35,7 +35,7 @@ pub struct BlockIOProtocol {
 impl BlockIOProtocol {
 
     /// Reads from the disk
-    pub fn read_blocks<T>(&self, lba: u64, buffer_size: usize, buffer: *mut T) -> u32 {
+    pub fn read_blocks(&self, lba: u64, buffer_size: usize, buffer: *mut u8) -> u32 {
         unsafe { (self._read_blocks)(self, (*self.media).media_id, lba, buffer_size, buffer as *const c_void) }
     }
 }
