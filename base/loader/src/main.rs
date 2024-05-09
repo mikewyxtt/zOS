@@ -22,6 +22,7 @@
 #![no_main]
 #![feature(custom_test_frameworks)]
 #![feature(strict_provenance)]
+#![feature(allocator_api)]
 #![test_runner(crate::test_runner)]
 
 
@@ -38,7 +39,7 @@ mod libuefi;
 use core::panic::PanicInfo;
 use config::parse_cfg;
 use drivers::*;
-// use debugutils::hexdump_blocks;
+use debugutils::hexdump_blocks;
 
 
 #[no_mangle]
@@ -51,6 +52,8 @@ extern "win64" fn efi_main(efi_image_handle: *const usize, efi_system_table: *co
     ldrprintln!("Entered efi_main()..");
 
     let cfg = parse_cfg();
+
+    extfs::find(cfg.rootfs, " ");
 
 
     ldrprintln!("root={}", cfg.rootfs.as_string());
