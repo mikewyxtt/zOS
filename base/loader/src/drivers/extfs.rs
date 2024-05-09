@@ -16,14 +16,17 @@
  *  You should have received a copy of the GNU General Public License
  *  along with zOS. If not, see <http://www.gnu.org/licenses/>.
  */
+#![allow(dead_code)]
 
+use alloc::{boxed::Box, vec, vec::Vec};
+use debugutils::hexdump;
 
-use alloc::boxed::Box;
-
-use crate::{libuefi::GUID, uefi};
+use crate::{libuefi::GUID, uefi::{self, disk}};
 use core::mem::size_of;
 
+
 #[repr(C, packed)]
+#[derive(Clone, Copy)]
 struct Ext4Superblock {
     pub inodes_count:               u32,
     pub blocks_count_lo:            u32,
@@ -127,6 +130,7 @@ struct Ext4Superblock {
 
 
 #[repr(C, packed)]
+#[derive(Clone, Copy)]
 struct Ext4BlockGroupDescriptor {
     pub block_bitmap_lo:            u32,
     pub inode_bitmap_lo:            u32,
@@ -153,7 +157,10 @@ struct Ext4BlockGroupDescriptor {
     reserved:                       u32,
 }
 
+
+
 #[repr(C, packed)]
+#[derive(Clone, Copy)]
 struct Ext4INode {
     pub mode:                       u16,
     pub uid:                        u16,
@@ -183,7 +190,10 @@ struct Ext4INode {
     pub version_hi:                 u32,
     pub projid:                     u32,
 
+    // packing: [u8; 96],
 }
+
+
 
 #[repr(C, packed)]
 struct Ext4DirectoryEntry {
@@ -194,22 +204,43 @@ struct Ext4DirectoryEntry {
     pub name:                       [u8],
 }
 
-// trait DiskDriver {
-//     fn open();
-//     fn close();
-//     fn read_bytes_raw();
-// }
+impl Ext4Superblock{
+    pub fn zeroed() -> Self {
+        unsafe { core::mem::zeroed::<Self>() }
+    }
+}
 
-// struct Driver;
+impl Ext4BlockGroupDescriptor {
+    pub fn zeroed() -> Self {
+        unsafe { core::mem::zeroed::<Self>() }
+    }
+}
 
-// impl DriverTrait for Driver {
-//     //
-// }
+
+impl Ext4INode {
+    pub fn zeroed() -> Self {
+        unsafe { core::mem::zeroed::<Self>() }
+    }
+
+    pub const fn get_block_group(sb: &Ext4Superblock, inode_num: u32) -> u32 {
+        (inode_num - 1) / sb.inodes_per_group
+    }
+
+    pub const fn get_index(sb: &Ext4Superblock, inode_num: u32) -> u32 {
+        (inode_num - 1) % sb.inodes_per_group
+    }
+
+    pub const fn get_offset(sb: &Ext4Superblock, inode_num: u32) -> u32 {
+        let index = Self::get_index(sb, inode_num);
+
+        index * sb.inode_size as u32
+    }
+}
 
 
 /// Scans the slice to determine if it contains an Ext filesystem. Returns true if it is.
 pub fn detect(slice: GUID) -> bool {
-        let sb = {
+    let sb = {
         let mut buff: Box<Ext4Superblock> = unsafe { Box::new(core::mem::zeroed()) };
         let _ = unsafe { uefi::disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()) };
 
@@ -225,7 +256,100 @@ pub fn detect(slice: GUID) -> bool {
     }
 }
 
-fn find_file() {
-    //
+
+
+pub fn find(slice: GUID, path: &str) {
+    find_file(slice, path);
+}
+
+
+
+
+fn find_file(slice: GUID, path: &str) -> Ext4INode {
+    // bring superblock into memory
+    let sb = {
+        let mut buff: Box<Ext4Superblock> = Box::new(Ext4Superblock::zeroed());
+        let _ = unsafe { uefi::disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()) };
+
+        buff
+    };
+
+    // Read the block group descriptors into memory
+    let bg_descriptors: Vec<Ext4BlockGroupDescriptor> = {
+        let mut buff: Vec<Ext4BlockGroupDescriptor> = Vec::with_capacity(10);
+        unsafe {
+            buff.set_len(10);
+            let _ = uefi::disk::read_bytes_raw(slice, 8,buff.len() * size_of::<Ext4BlockGroupDescriptor>(), buff.as_mut_ptr() as *mut u8);
+        }
+
+        buff
+    };
+
+
+
+    // find inode table and read into mem
+    let inode_table: Vec<Ext4INode> = {
+        // Get the block group descriptor for the inode
+        let bg_descriptor = { 
+            let block_group_num: usize = Ext4INode::get_block_group(&sb, 2).try_into().unwrap();
+
+            bg_descriptors[block_group_num]
+        };
+
+
+        // let inode_table_size: usize = sb.inodes_per_group as usize * sb.inode_size as usize / 8;
+        let inode_table_size: usize = 20;
+        let inode_size = u16::from_le(sb.inode_size);
+
+
+        // Create the buffer, ensuring it is aligned to the size of an inode
+        let layout = core::alloc::Layout::from_size_align(size_of::<Ext4INode>() * inode_table_size, inode_size.into()).unwrap();
+        let buffer: *mut Ext4INode = unsafe { alloc::alloc::alloc(layout).cast() };
+
+
+
+        let table_loc = u32::from_le(bg_descriptor.inode_table_lo);
+        let phys_blk_size: u64 = disk::get_phys_block_size(slice).try_into().unwrap();
+        let log_b_size: u32 = 1 << (10 + u32::from_le(sb.log_block_size));    
+        let inode_table_lba: u64 = table_loc as u64 * (log_b_size as u64 / phys_blk_size);
+
+
+        // Read the inode table from the disk into the buffer, passing ownership of the allocated memory to the Vec
+        unsafe {
+            let _ = uefi::disk::read_bytes_raw(slice, inode_table_lba, inode_table_size * sb.inode_size as usize, buffer.cast());
+            let buffer = Vec::from_raw_parts(buffer, inode_table_size, inode_table_size);
+
+            buffer
+        }
+    };
+
+
+
+    for (i, inode) in inode_table.iter().enumerate() {
+        let mode = u16::from_le(inode.mode);
+        ldrprintln!("inode {} mode: 0x{:X}", i, mode);
+    }
+
+
+
+
+
+
+    // find inode 2 (root dir) in the inode table
+    let i: usize = Ext4INode::get_index(&sb, 2).try_into().unwrap();
+    let root_dir_inode = inode_table[i];
+
+    // parse the extent tree OR block map (check for the flag)
+
+    // read its contents into memory (the directory entries)
+    // break the path up into segments
+    // compare the path segment with the directory entries
+    // if found, parse inode -> read contents -> repeat until we have reached last path segment
+    // return the inode of the file to read
+
+
+    loop {}
+    // placeholder
+    return unsafe { core::mem::zeroed() }
 }
 
