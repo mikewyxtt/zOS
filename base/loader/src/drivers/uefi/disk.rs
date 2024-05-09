@@ -81,36 +81,80 @@ pub fn init() {
 
 
 
+pub unsafe fn read_bytes_raw(slice: GUID, lba: u64, count: usize, buffer: *mut u8) -> Result<(), String> {
+    //
+    // TODO: determine if we should use u64 or usize
+    //
+    let count = count as u64;
+    
+    let phys_block_size = get_phys_block_size(slice);
 
-pub unsafe fn read_bytes_raw(guid: GUID, lba: u64, count: usize, buffer: *mut u8) -> Result<(), String> {
+    // if 'count' is equal to an even multiple of physical blocks we can simply read the blocks into buffer
+    //
+    // if 'count' is NOT equal to an even multiple of physical blocks. We can read 'full_count' number of blocks into buffer, then create a temporary buffer with a size equal to phys_block_size to hold the full block
+    // We can then copy the bytes we actually need into the buffer and return
+    if (count % phys_block_size) == 0 {
+        return read_blocks(slice, lba, count, buffer);
+    }
+    else {
+        let full_count = (count / phys_block_size) * phys_block_size;
+        let rem = count % phys_block_size;
 
+        // Read the amount of blocks that fit into 'count' evenly into the buffer
+        read_blocks(slice, lba, full_count, buffer).unwrap();
+
+        // Create a temporary buffer = to size of one block
+        let buff_size: usize = phys_block_size.try_into().unwrap();
+        let mut tmp: Vec<u8> = vec![0; buff_size];
+
+
+        // Read the remainder of bytes into the temporary buffer
+        read_blocks(slice, lba, phys_block_size, tmp.as_mut_ptr().cast()).unwrap();
+
+        // Copy 'remainder' into 'buffer'
+        unsafe {
+            let rem_ptr = {
+                let buff_ptr = buffer.as_mut().unwrap() as *mut u8;
+                buff_ptr.offset(full_count as isize)
+            };
+
+            ptr::copy(tmp.as_ptr(), rem_ptr, rem as usize);
+        }
+    }
+
+
+    return Ok(())
+}
+
+
+
+
+pub unsafe fn read_blocks(guid: GUID, lba: u64, buffer_size: u64, buffer: *mut u8) -> Result<(), String> {
     let block_io_protocol = BootServices::handle_protocol::<BlockIOProtocol>(lookup_handle(guid));
-
     let block_size = (*block_io_protocol.media).block_size as usize;
 
-    if count < block_size {
-        let mut tmp: Vec<u8> = vec![0; block_size];
-        let status = block_io_protocol.read_blocks(lba, block_size, tmp.as_mut_ptr());
-        if status == 0 {
-            unsafe { ptr::copy(tmp.as_ptr(), buffer, count) };
-            Ok(())
-        }
-        else {
-            Err(alloc::format!("EFI ERROR: {}", status).to_string())
-        }
+    assert_eq!(buffer_size % block_size as u64, 0, "'buffer_size' must be a multiple of the disk's physical block size. (e.g 512 bytes)");
+
+    let status = block_io_protocol.read_blocks(lba, buffer_size as usize, buffer);
+    if status == 0 {
+        Ok(())
     }
 
     else {
-        let status = block_io_protocol.read_blocks(lba, count, buffer);
-        if status == 0 {
-            Ok(())
-        }
-
-        else {
-            Err(alloc::format!("EFI ERROR: {}", status).to_string())
-        }
+        Err(alloc::format!("EFI ERROR: {}", status).to_string())
     }
+    
 }
+
+
+
+
+pub fn get_phys_block_size(slice: GUID) -> u64 {
+    let block_io_protocol = BootServices::handle_protocol::<BlockIOProtocol>(lookup_handle(slice));
+    
+    unsafe { (*block_io_protocol.media).block_size as u64 }
+}
+
 
 
 
