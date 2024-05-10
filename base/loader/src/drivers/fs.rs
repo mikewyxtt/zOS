@@ -49,49 +49,6 @@ fn detect_fs_type(guid: GUID) -> FilesystemType {
 
 
 
-/// Reads a files entire contents into *buffer*
-///
-/// If *buffer* is a null ptr, this fn returns the buffer size needed to contain the file. Otherwise, it returns None.
-pub unsafe fn read_file_raw(slice: GUID, path: &str, buffer: *mut u8) -> Option<u64> {
-    match detect_fs_type(slice) {
-        FilesystemType::FAT => {
-            return fat::read_bytes_raw(slice, path, buffer);
-        }
-
-        FilesystemType::EXT => {
-            // return extfs::read_bytes_raw(slice, path, buffer);
-            return None;
-        }
-
-        FilesystemType::UNKNOWN => {
-            panic!("Trying to open \"{path}\" on slice with GUID {} failed: Unknown filesystem \nHalting.", slice.as_string())
-        }
-    }
-}
-
-
-
-/// Reads the entire contents of the file into a String
-pub fn read_to_string(slice: GUID, path: &str) -> String {
-    let filesize = unsafe { read_file_raw(slice, path, core::ptr::null_mut()).unwrap() };
-    let contents: Vec<u8> = { 
-        let mut buffer: Vec<u8> = vec![0; filesize.try_into().unwrap()];
-        unsafe { read_file_raw(slice, path, buffer.as_mut_ptr()) };
-
-        buffer
-    };
-
-    let mut s = String::new();
-
-    for b in &contents {
-        s.push(*b as char);
-    }
-
-    s
-}
-
-
-
 /// Start the filesystem driver
 pub fn start() {
     // Do something
