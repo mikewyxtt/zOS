@@ -39,10 +39,10 @@ impl Default for Config {
 
 /// Reads and parses the cfg file from the ESP
 pub fn parse_cfg() -> Config {
+    let file = fs::File::open_by_guid(firmware::misc::get_esp_guid(), "/EFI/BOOT/ZOS/LOADER.CFG");
+    let s = file.read_to_string().unwrap();
+
     let mut config = Config::default();
-
-    let s = fs::read_to_string(firmware::misc::get_esp_guid(), "/EFI/BOOT/ZOS/LOADER.CFG");
-
     for line in s.lines() {
         let (key, value) = parse_key_value_pair(line);
 
