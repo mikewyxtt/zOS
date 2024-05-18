@@ -24,6 +24,7 @@ extern "win64" fn efi_main(efi_image_handle: *const usize, efi_system_table: *co
     super::libuefi::init(efi_image_handle, efi_system_table);
     super::console::init();
     super::disk::init();
+    super::fb::init();
 
     crate::main();
     unreachable!()
