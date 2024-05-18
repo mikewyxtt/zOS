@@ -22,5 +22,6 @@ mod libuefi;
 
 pub mod console;
 pub mod disk;
+pub mod fb;
 pub mod mem;
 pub mod misc;
