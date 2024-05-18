@@ -22,6 +22,7 @@ pub mod device_path;
 pub mod loaded_image;
 pub mod file;
 pub mod filesystem;
+pub mod graphics_output;
 pub mod simple_text_output;
 
 pub trait EFIProtocol {
