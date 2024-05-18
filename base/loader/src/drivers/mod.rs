@@ -26,5 +26,6 @@ pub mod fs;
 
 /// Starts the drivers
 pub fn start() {
+    console::start();
     fs::start();
 }
