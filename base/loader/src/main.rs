@@ -25,6 +25,7 @@
 #![feature(allocator_api)]
 #![test_runner(crate::tests::test_runner)]
 
+#![feature(ptr_metadata)]
 
 extern crate alloc;
 
@@ -33,6 +34,7 @@ mod allocator;
 mod config;
 mod drivers;
 mod firmware;
+mod lib;
 mod tests;
 mod uuid;
 
@@ -47,12 +49,29 @@ fn main() {
     console::clear();
 
     ldrprintln!("Entered main()..");
-    let cfg = parse_cfg();
 
-    extfs::find(cfg.rootfs, " ");
-    
+
+    let cfg = parse_cfg();
     ldrprintln!("root={}", cfg.rootfs.as_string());
     ldrprintln!("resolution={}", cfg.resolution);
+
+//    extfs::find(cfg.rootfs, " ");
+
+    let fb = firmware::fb::get_active_fb().expect("Could not get Framebuffer.").read().unwrap();
+
+
+    ldrprintln!("FB addr: 0x{:X}", fb.base_addr as usize);
+    ldrprintln!("FB size: {} bytes", fb.size);
+    ldrprintln!("FB resolution: {}x{}", fb.width, fb.height);
+    ldrprintln!("FB bpp: {} bytes", fb.size / fb.width as usize / fb.height as usize);
+
+    // for i in 0..1024 {
+    //     fb.plot_pixel(i, 4, 0);
+    // }
+
+
+
+
 
     ldrprintln!("Done. Looping.");
 
