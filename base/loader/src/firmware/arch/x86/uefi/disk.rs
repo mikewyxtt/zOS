@@ -20,7 +20,7 @@
 #![allow(dead_code)]
 
 use core::ptr;
-use alloc::vec;
+use alloc::{format, vec};
 use alloc::{string::{String, ToString}, vec::Vec};
 use super::libuefi::{bootservices::BootServices, protocol::{block_io::BlockIOProtocol, device_path::{DevicePathProtocol, HardDriveDevicePath}}};
 use crate::uuid::GUID;
@@ -34,6 +34,13 @@ struct DiskSliceInfo {
     handle:                 *const usize,
 }
 
+#[derive(Clone, Copy)]
+pub struct Disk {
+    pub guid:           GUID,
+    pub removable:      bool,
+    pub block_size:     u8,
+}
+
 impl DiskSliceInfo {
     pub const fn new(guid: GUID, handle: *const usize) -> Self {
         Self {
@@ -41,6 +48,22 @@ impl DiskSliceInfo {
             handle,
         }
     }
+}
+
+/// Returns a list of the detected storage devices
+pub fn list_disks() -> Vec<Disk> {
+    todo!();
+}
+
+
+pub fn get_disk_info(guid: GUID) -> Result<Disk, String> {
+    for disk in list_disks() {
+        if disk.guid == guid {
+            return Ok(disk);
+        }
+    }
+
+    Err(format!("Could not find disk: {}", guid.as_string()).to_string())
 }
 
 
@@ -80,7 +103,20 @@ pub fn init() {
 }
 
 
-
+pub fn read_bytes(slice: GUID, lba: u64, count: usize, buffer: &mut [u8]) -> Result<(), String> {
+    assert!(count <= buffer.len());
+    let result;
+    unsafe {
+        result = read_bytes_raw(slice, lba, count, buffer.as_mut_ptr());
+    }
+    
+    if result.is_ok() {
+        Ok(result.ok().unwrap())
+    }
+    else {
+        Err(result.err().unwrap())
+    }
+}
 
 pub unsafe fn read_bytes_raw(slice: GUID, lba: u64, count: usize, buffer: *mut u8) -> Result<(), String> {
     //
