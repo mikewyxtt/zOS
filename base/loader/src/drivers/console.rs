@@ -19,7 +19,7 @@
 
 
 use core::{fmt::{self, Error, Write}, sync::atomic::{AtomicBool, Ordering}};
-use crate::{firmware, lib::mutex::Mutex};
+use crate::{firmware, libloader::mutex::Mutex};
 
 static CURSOR: Mutex<Cursor> = Mutex::new(Cursor::new());
 static HEADLESS: AtomicBool = AtomicBool::new(true);

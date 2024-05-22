@@ -34,7 +34,7 @@ mod allocator;
 mod config;
 mod drivers;
 mod firmware;
-mod lib;
+mod libloader;
 mod tests;
 mod uuid;
 

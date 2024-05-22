@@ -20,7 +20,7 @@
 #![allow(dead_code)]
 
 use core::{ptr, sync::atomic::Ordering};
-use crate::lib::rwlock::RwLock;
+use crate::libloader::rwlock::RwLock;
 use super::libuefi::bootservices::BootServices;
 use super::libuefi::protocol::graphics_output::GraphicsOutputProtocol;
 
