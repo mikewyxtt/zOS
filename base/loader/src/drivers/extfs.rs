@@ -19,12 +19,10 @@
 #![allow(dead_code)]
 
 use alloc::{boxed::Box, vec, vec::Vec};
-use debugutils::hexdump;
-
-// use crate::{libuefi::GUID, uefi::{self, disk}};
 use crate::uuid::GUID;
-use crate::firmware::disk;
+use crate::firmware::{self, disk};
 use core::mem::size_of;
+use core::ptr;
 
 
 #[repr(C, packed)]
@@ -191,8 +189,31 @@ struct Ext4INode {
     pub crtime_extra:               u32,
     pub version_hi:                 u32,
     pub projid:                     u32,
+}
 
-    // packing: [u8; 96],
+#[repr(C, packed)]
+struct ExtentHeader {
+    pub magic:      u16,
+    pub entries:    u16,
+    pub max:        u16,
+    pub depth:      u16,
+    pub generation: u32,
+}
+
+#[repr(C, packed)]
+struct ExtentIndex {
+    pub block:      u32,
+    pub leaf_lo:    u32,
+    pub leaf_hi:    u16,
+    unused:         u16,
+}
+
+#[repr(C, packed)]
+struct ExtentLeaf {
+    pub block:      u32,
+    pub len:        u16,
+    pub start_hi:   u16,
+    pub start_lo:   u32,
 }
 
 
@@ -207,20 +228,20 @@ struct Ext4DirectoryEntry {
 }
 
 impl Ext4Superblock{
-    pub fn zeroed() -> Self {
+    pub fn new_zeroed() -> Self {
         unsafe { core::mem::zeroed::<Self>() }
     }
 }
 
 impl Ext4BlockGroupDescriptor {
-    pub fn zeroed() -> Self {
+    pub fn new_zeroed() -> Self {
         unsafe { core::mem::zeroed::<Self>() }
     }
 }
 
 
 impl Ext4INode {
-    pub fn zeroed() -> Self {
+    pub fn new_zeroed() -> Self {
         unsafe { core::mem::zeroed::<Self>() }
     }
 
@@ -240,11 +261,15 @@ impl Ext4INode {
 }
 
 
+
+
 /// Scans the slice to determine if it contains an Ext filesystem. Returns true if it is.
 pub fn detect(slice: GUID) -> bool {
     let sb = {
-        let mut buff: Box<Ext4Superblock> = unsafe { Box::new(core::mem::zeroed()) };
-        let _ = unsafe { disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()) };
+        let mut buff: Box<Ext4Superblock> = Box::new(Ext4Superblock::new_zeroed());
+        unsafe { 
+            disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()).unwrap();
+        }
 
         buff
     };
@@ -260,98 +285,151 @@ pub fn detect(slice: GUID) -> bool {
 
 
 
-pub fn find(slice: GUID, path: &str) {
-    find_file(slice, path);
-}
-
-
-
-
-fn find_file(slice: GUID, path: &str) -> Ext4INode {
+/// Reads an inode from the disk
+fn read_inode(slice: GUID, inode_num: u32) -> Result<Box<Ext4INode>, ()> {
     // bring superblock into memory
     let sb = {
-        let mut buff: Box<Ext4Superblock> = Box::new(Ext4Superblock::zeroed());
-        let _ = unsafe { disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()) };
+        let mut buff: Box<Ext4Superblock> = Box::new(Ext4Superblock::new_zeroed());
+        unsafe { 
+            disk::read_bytes_raw(slice, 2, size_of::<Ext4Superblock>(), (buff.as_mut() as *mut Ext4Superblock).cast()).unwrap();
+        }
 
         buff
     };
 
     // Read the block group descriptors into memory
     let bg_descriptors: Vec<Ext4BlockGroupDescriptor> = {
-        let mut buff: Vec<Ext4BlockGroupDescriptor> = Vec::with_capacity(10);
+        // TODO: Need to make this dynamic, not a static LBA and capacity..
+        let mut buff: Vec<Ext4BlockGroupDescriptor> = vec![Ext4BlockGroupDescriptor::new_zeroed(); 10];
         unsafe {
-            buff.set_len(10);
-            let _ = disk::read_bytes_raw(slice, 8,buff.len() * size_of::<Ext4BlockGroupDescriptor>(), buff.as_mut_ptr() as *mut u8);
+            disk::read_bytes_raw(slice, 8,buff.len() * size_of::<Ext4BlockGroupDescriptor>(), buff.as_mut_ptr() as *mut u8).unwrap();
         }
 
         buff
     };
 
+    // Get the block group descriptor for the inode
+    let bg_descriptor = { 
+        let block_group_num: usize = Ext4INode::get_block_group(&sb, inode_num).try_into().unwrap();
 
-
-    // find inode table and read into mem
-    let inode_table: Vec<Ext4INode> = {
-        // Get the block group descriptor for the inode
-        let bg_descriptor = { 
-            let block_group_num: usize = Ext4INode::get_block_group(&sb, 2).try_into().unwrap();
-
-            bg_descriptors[block_group_num]
-        };
-
-
-        // let inode_table_size: usize = sb.inodes_per_group as usize * sb.inode_size as usize / 8;
-        let inode_table_size: usize = 20;
-        let inode_size = u16::from_le(sb.inode_size);
-
-
-        // Create the buffer, ensuring it is aligned to the size of an inode
-        let layout = core::alloc::Layout::from_size_align(size_of::<Ext4INode>() * inode_table_size, inode_size.into()).unwrap();
-        let buffer: *mut Ext4INode = unsafe { alloc::alloc::alloc(layout).cast() };
-
-
-
-        let table_loc = u32::from_le(bg_descriptor.inode_table_lo);
-        let phys_blk_size: u64 = disk::get_phys_block_size(slice).try_into().unwrap();
-        let log_b_size: u32 = 1 << (10 + u32::from_le(sb.log_block_size));    
-        let inode_table_lba: u64 = table_loc as u64 * (log_b_size as u64 / phys_blk_size);
-
-
-        // Read the inode table from the disk into the buffer, passing ownership of the allocated memory to the Vec
-        unsafe {
-            let _ = disk::read_bytes_raw(slice, inode_table_lba, inode_table_size * sb.inode_size as usize, buffer.cast());
-            let buffer = Vec::from_raw_parts(buffer, inode_table_size, inode_table_size);
-
-            buffer
-        }
+        bg_descriptors[block_group_num]
     };
 
+    let table_loc = u32::from_le(bg_descriptor.inode_table_lo);
+    let phys_blk_size: u64 = disk::get_phys_block_size(slice).try_into().unwrap();
+    let log_b_size: u32 = 1 << (10 + u32::from_le(sb.log_block_size));    
+    let inode_table_lba: u64 = table_loc as u64 * (log_b_size as u64 / phys_blk_size);
+    let inode_size = u16::from_le(sb.inode_size);
 
+    // Index of our inode within its inode table
+    let inode_index: usize = Ext4INode::get_index(&sb, inode_num).try_into().unwrap();
 
-    for (i, inode) in inode_table.iter().enumerate() {
-        let mode = u16::from_le(inode.mode);
-        ldrprintln!("inode {} mode: 0x{:X}", i, mode);
+    // Location of the inode as an offset in bytes starting from the inode table LBA
+    let inode_phys_offset = inode_index as usize * inode_size as usize;
+
+    // how many sectors we need to offset by within the inode table
+    let inode_offset_lba = inode_phys_offset as usize / phys_blk_size as usize;
+    let inode_lba = inode_table_lba as usize + inode_offset_lba as usize;
+
+    // Read the sector into a buffer
+    let mut buffer: Vec<u8> = vec![0; phys_blk_size as usize];
+    firmware::disk::read_bytes(slice, inode_lba as u64, phys_blk_size as usize, &mut buffer).unwrap();
+
+    // Pick the inode out of the buffer
+    let mut inode: Box<Ext4INode> = Box::new(Ext4INode::new_zeroed());
+    let offset: usize = inode_phys_offset - (inode_offset_lba * phys_blk_size as usize);
+    unsafe {
+        core::ptr::copy(&buffer[offset], (inode.as_mut() as *mut Ext4INode).cast(), size_of::<Ext4INode>());
     }
 
-
-
-
-
-
-    // find inode 2 (root dir) in the inode table
-    let i: usize = Ext4INode::get_index(&sb, 2).try_into().unwrap();
-    let root_dir_inode = inode_table[i];
-
-    // parse the extent tree OR block map (check for the flag)
-
-    // read its contents into memory (the directory entries)
-    // break the path up into segments
-    // compare the path segment with the directory entries
-    // if found, parse inode -> read contents -> repeat until we have reached last path segment
-    // return the inode of the file to read
-
-
-    loop {}
-    // placeholder
-    return unsafe { core::mem::zeroed() }
+    // TODO: Do some sanity checks
+    Ok(inode)
 }
 
+
+
+
+/// Searches the directory entries for a file, and if found returns its inode number
+fn get_file_inode(slice: GUID, path: &str) -> Result<u32, &str> {
+    // Start at the root directory inode (always inode 2)
+    let mut inode_num = 2;
+    let path = path.trim_start_matches("/");
+    for path_entry in path.split("/") {
+        let inode = read_inode(slice, inode_num).unwrap();
+        if u16::from_le_bytes([inode.block[0], inode.block[1]]) == 0xF30A {
+
+            // parse the extent tree OR block map (check for the flag)
+            let _ext_tree_header: &ExtentHeader = unsafe { &*ptr::from_raw_parts((&inode.block[0] as *const u8).cast(), ()) };
+            let ext_tree_leaf: &ExtentLeaf = unsafe { &*ptr::from_raw_parts((&inode.block[12] as *const u8).cast(), ()) };
+
+            // read its contents into memory (the directory entries)
+            let buff_size = u32::from_le(inode.size_lo) as usize;
+            let lba = (ext_tree_leaf.start_lo as u64 * 4096) / firmware::disk::get_phys_block_size(slice);
+            let mut buff: Vec<u8> = vec![0; buff_size];
+            firmware::disk::read_bytes(slice, lba, buff_size, &mut buff).unwrap();
+
+            // Parse the entries
+            let mut i = 0;
+            while i < buff_size {
+                // Get the static part of the dir entry
+                let dir_entry: &Ext4DirectoryEntry = unsafe { &*ptr::from_raw_parts((&buff[i] as *const u8).cast(), 0) };
+                let dir_entry: &Ext4DirectoryEntry = unsafe { &*ptr::from_raw_parts((&buff[i] as *const u8).cast(), u8::from_le(dir_entry.name_len) as usize) };
+
+                // let dir_entry: &Ext4DirectoryEntry = unsafe { ptr::from_raw_parts::<Ext4DirectoryEntry>((&buff[i] as *const u8).cast(), 0).as_ref().unwrap() };
+
+                if path_entry == core::str::from_utf8(&dir_entry.name).unwrap() {
+                    // Regular file?>
+                    if dir_entry.file_type == 0x1 {
+                        return Ok(u32::from_le(dir_entry.inode));
+
+                    }
+                    else {
+                        inode_num = u32::from_le(dir_entry.inode);
+                    }
+                }
+
+                i += u16::from_le(dir_entry.rec_len) as usize;
+            }
+        }
+        else {
+            panic!("Data block parsing for EXT filesystems is not implemented. FS must use an extent tree.")
+        }
+    }
+
+    Err("Could not find file")
+
+}
+
+
+
+
+/// Reads a files entire contents into *buffer*
+///
+/// If *buffer* is a null ptr, this fn returns the buffer size needed to contain the file. Otherwise, it returns None.
+pub unsafe fn read_bytes_raw(slice: GUID, path: &str, buffer: *mut u8) -> Option<u64> {
+    let inode = read_inode(slice, get_file_inode(slice, path).unwrap()).unwrap();
+
+    if buffer.is_null() {
+        ldrprintln!("null ptr, returning filesize: {}", u32::from_le(inode.size_lo) as u64);
+        return Some(u32::from_le(inode.size_lo) as u64);
+    }
+    else {
+        // Parse the extent tree OR block map (check for the flag)
+        // Magic number must be 0xF30A (always little endian) if the fs is using an extent tree instead of a block map
+        if u16::from_le_bytes([inode.block[0], inode.block[1]]) == 0xF30A {
+            let _ext_tree_header: &ExtentHeader = unsafe { &*ptr::from_raw_parts((&inode.block[0] as *const u8).cast(), ()) };
+            let ext_tree_leaf: &ExtentLeaf = unsafe { &*ptr::from_raw_parts((&inode.block[12] as *const u8).cast(), ()) };
+
+            // read the files contents into the buffer
+            let buff_size = u32::from_le(inode.size_lo) as usize;
+            let lba = (ext_tree_leaf.start_lo as u64 * 4096) / firmware::disk::get_phys_block_size(slice);
+            unsafe { 
+                firmware::disk::read_bytes_raw(slice, lba, buff_size, buffer).unwrap(); 
+            }
+            return None;
+        }
+        else {
+            panic!("Data block parsing for EXT filesystems is not implemented. FS must use an extent tree.");
+        }
+    }
+}
