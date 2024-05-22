@@ -20,12 +20,12 @@
 
 #![no_std]
 #![no_main]
-#![feature(custom_test_frameworks)]
-#![feature(strict_provenance)]
 #![feature(allocator_api)]
+#![feature(custom_test_frameworks)]
+#![feature(ptr_metadata)]
+#![feature(strict_provenance)]
 #![test_runner(crate::tests::test_runner)]
 
-#![feature(ptr_metadata)]
 
 extern crate alloc;
 
