@@ -58,7 +58,6 @@ pub fn start() {
 // Generic filetype, used inside all other file types
 pub struct File {
     slice:  GUID,
-    uuid:   Option<u128>,
     path:   String,
 }
 
@@ -66,19 +65,19 @@ impl File {
     pub fn open_by_guid(slice: GUID, path: &str) -> Self {
         Self {
             slice:  slice,
-            uuid:   None,
             path:   path.to_string(),
         }
     }
 
-    pub fn open_by_uuid(uuid: u128, path: &str) -> Self {
-        let slice: GUID = unsafe { core::mem::zeroed() };
+    pub fn open_by_uuid(_uuid: u128, _path: &str) -> Self {
+        todo!();
+        // let slice: GUID = unsafe { core::mem::zeroed() };
 
-        Self {
-            slice:  slice,
-            uuid:   Some(uuid),
-            path:   path.to_string(),
-        }
+        // Self {
+        //     slice:  slice,
+        //     uuid:   Some(uuid),
+        //     path:   path.to_string(),
+        // }
     }
 
     /// Reads a files entire contents into *buffer*
@@ -91,18 +90,21 @@ impl File {
             }
 
             FilesystemType::EXT => {
-                // return extfs::read_bytes_raw(slice, path, buffer);
-                return None;
+                return extfs::read_bytes_raw(self.slice, &self.path, buffer);
+                // return extfs::read_bytes_raw(self.slice, &self.path, buffer).unwrap();
             }
 
             FilesystemType::UNKNOWN => {
+                // let path = &self.path;
+                // if self.uuid.is_some() {
+                //     panic!("Trying to open \"{path}\" on slice with UUID {} failed: Unknown filesystem \nHalting.", self.uuid.unwrap())
+                // }
+                // else {
+                //     panic!("Trying to open \"{path}\" on slice with GUID {} failed: Unknown filesystem \nHalting.", self.slice.as_string())
+                // }
+
                 let path = &self.path;
-                if self.uuid.is_some() {
-                    panic!("Trying to open \"{path}\" on slice with UUID {} failed: Unknown filesystem \nHalting.", self.uuid.unwrap())
-                }
-                else {
-                    panic!("Trying to open \"{path}\" on slice with GUID {} failed: Unknown filesystem \nHalting.", self.slice.as_string())
-                }
+                panic!("Trying to open \"{path}\" on slice with GUID {} failed: Unknown filesystem \nHalting.", self.slice.as_string())
             }
         }
     }
