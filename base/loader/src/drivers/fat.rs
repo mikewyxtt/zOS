@@ -58,6 +58,12 @@ struct BIOSParameterBlock {
     _reserved:              [u8; 12],
 }
 
+impl BIOSParameterBlock {
+    pub fn new_zeroed() -> Self {
+        unsafe { core::mem::zeroed::<Self>() }
+    }
+}
+
 #[repr(C, packed)]
 struct FSInfo {
     pub leadsig:            u32,
@@ -70,6 +76,7 @@ struct FSInfo {
 }
 
 #[repr(C, packed)]
+#[derive(Clone, Copy)]
 struct DirectoryEntry {
     pub name:               [u8; 11],
     pub attr:               u8,
@@ -85,8 +92,8 @@ struct DirectoryEntry {
     pub filesize:           u32,
 }
 
-impl BIOSParameterBlock {
-    pub fn zeroed() -> Self {
+impl DirectoryEntry {
+    pub fn new_zeroed() -> Self {
         unsafe { core::mem::zeroed::<Self>() }
     }
 }
@@ -140,7 +147,7 @@ pub fn detect(slice: GUID) -> bool {
     // Read the boot sector into memory
     let bs = {
         let mut buffer: Vec<u8> = vec![0; 512];
-        let _ = unsafe { disk::read_bytes_raw(slice, 0, 512, buffer.as_mut_ptr()) };
+        disk::read_bytes(slice, 0, 512, &mut buffer).unwrap();
 
         buffer
     };
@@ -276,10 +283,11 @@ fn find_file(slice: GUID, path: &str, bpb: &BIOSParameterBlock) -> Result<Direct
         let dir_entries = {
             let num_dir_entries = (bpb.bytspersec as usize * bpb.secperclus as usize) / 32;
 
-            let mut entries: Vec<DirectoryEntry> = Vec::with_capacity(num_dir_entries);
-            unsafe { entries.set_len(num_dir_entries); }
+            let mut entries: Vec<DirectoryEntry> = vec![DirectoryEntry::new_zeroed(); num_dir_entries];
             let lba = find_first_sector_of_cluster(&bpb, cluster_num);
-            let _ = unsafe { disk::read_bytes_raw(slice, lba as u64, num_dir_entries * size_of::<DirectoryEntry>(), entries.as_mut_ptr().cast()) };
+            unsafe { 
+                disk::read_bytes_raw(slice, lba as u64, num_dir_entries * size_of::<DirectoryEntry>(), entries.as_mut_ptr().cast()).unwrap();
+            }
 
             entries
         };
@@ -313,8 +321,10 @@ fn find_file(slice: GUID, path: &str, bpb: &BIOSParameterBlock) -> Result<Direct
 /// If *buffer* is a null ptr, this fn returns the buffer size needed to contain the file. Otherwise, it returns None.
 pub unsafe fn read_bytes_raw(slice: GUID, path: &str, buffer: *mut u8) -> Option<u64>{
     let bpb = {
-        let mut buffer: Box<BIOSParameterBlock> = Box::new(BIOSParameterBlock::zeroed());
-        let _ = unsafe { disk::read_bytes_raw(slice, 0, size_of::<BIOSParameterBlock>(), (buffer.as_mut() as *mut BIOSParameterBlock).cast()) };
+        let mut buffer: Box<BIOSParameterBlock> = Box::new(BIOSParameterBlock::new_zeroed());
+        unsafe { 
+            disk::read_bytes_raw(slice, 0, size_of::<BIOSParameterBlock>(), (buffer.as_mut() as *mut BIOSParameterBlock).cast()).unwrap();
+        }
 
         buffer
     };
@@ -332,7 +342,9 @@ pub unsafe fn read_bytes_raw(slice: GUID, path: &str, buffer: *mut u8) -> Option
         assert!(filesize < cluster_size.into(), "Reading files larger than one FAT cluster({} bytes) from FAT slices is not supported by the zOS FAT driver.", cluster_size);
         
         let lba = find_first_sector_of_cluster(&bpb, entry.fst_clus_lo.into());
-        let _ = unsafe { disk::read_bytes_raw(slice, lba.into(), filesize as usize, buffer) };
+        unsafe { 
+            disk::read_bytes_raw(slice, lba.into(), filesize as usize, buffer).unwrap();
+        }
 
         return None;
     }
